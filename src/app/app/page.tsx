@@ -82,29 +82,36 @@ export default function AppPage() {
         setIsLoading(false);
         return;
       }
-      const { data, error } = await supabase
-        .from("places")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false });
+      try {
+        const { data, error } = await supabase
+          .from("places")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false });
 
-      if (error) {
-        console.error("Error fetching places:", error);
-      } else if (data) {
-        const mapped = data.map((row: any) => ({
-          id: row.id,
-          name: row.name,
-          type: row.type,
-          latitude: row.latitude,
-          longitude: row.longitude,
-          notes: row.notes,
-          visitedAt: row.visited_at,
-          isPublic: row.is_public,
-          media: row.media_json,
-        }));
-        setPlaces(mapped);
+        if (error || !data || data.length === 0) {
+          console.warn("Using sample fallback places:", error);
+          setPlaces(INITIAL_SAMPLE_PLACES);
+        } else {
+          const mapped = data.map((row: any) => ({
+            id: row.id,
+            name: row.name,
+            type: row.type,
+            latitude: row.latitude,
+            longitude: row.longitude,
+            notes: row.notes,
+            visitedAt: row.visited_at,
+            isPublic: row.is_public,
+            media: row.media_json,
+          }));
+          setPlaces(mapped);
+        }
+      } catch (err) {
+        console.warn("Network issue fetching places, using fallback:", err);
+        setPlaces(INITIAL_SAMPLE_PLACES);
+      } finally {
+        setIsLoading(false);
       }
-      setIsLoading(false);
     }
 
     fetchPlaces();

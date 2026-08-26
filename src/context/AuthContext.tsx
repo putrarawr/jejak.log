@@ -71,7 +71,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           });
         }
       } catch (err) {
-        console.error("Auth session init error:", err);
+        console.warn("Auth session init network issue:", err);
       } finally {
         setLoading(false);
       }
@@ -79,28 +79,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     getInitialSession();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        if (session?.user) {
-          setSession(session);
-          setUser({
-            id: session.user.id,
-            email: session.user.email || "",
-            username: session.user.user_metadata?.username || session.user.email?.split("@")[0] || "explorer",
-            displayName: session.user.user_metadata?.display_name || "Petualang Jejak",
-            avatarUrl: session.user.user_metadata?.avatar_url,
-          });
-          setIsGuestMode(false);
-        } else if (!localStorage.getItem("jejaklog_guest_user")) {
-          setSession(null);
-          setUser(null);
+    let subscription: any = null;
+    try {
+      const { data } = supabase.auth.onAuthStateChange(
+        (_event, session) => {
+          if (session?.user) {
+            setSession(session);
+            setUser({
+              id: session.user.id,
+              email: session.user.email || "",
+              username: session.user.user_metadata?.username || session.user.email?.split("@")[0] || "explorer",
+              displayName: session.user.user_metadata?.display_name || "Petualang Jejak",
+              avatarUrl: session.user.user_metadata?.avatar_url,
+            });
+            setIsGuestMode(false);
+          } else if (!localStorage.getItem("jejaklog_guest_user")) {
+            setSession(null);
+            setUser(null);
+          }
+          setLoading(false);
         }
-        setLoading(false);
-      }
-    );
+      );
+      subscription = data?.subscription;
+    } catch (e) {
+      console.warn("Failed to subscribe to auth state changes:", e);
+      setLoading(false);
+    }
 
     return () => {
-      subscription.unsubscribe();
+      if (subscription) subscription.unsubscribe();
     };
   }, []);
 
@@ -119,13 +126,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
 
       if (error) {
-        const isRateLimit =
+        const isRateLimitOrFetchError =
           error.message.toLowerCase().includes("rate limit") ||
           error.message.toLowerCase().includes("over_email") ||
-          error.message.toLowerCase().includes("too many requests");
+          error.message.toLowerCase().includes("too many requests") ||
+          error.message.toLowerCase().includes("failed to fetch") ||
+          error.message.toLowerCase().includes("fetch") ||
+          error.message.toLowerCase().includes("network");
 
-        if (isRateLimit) {
-          console.warn("Supabase Rate Limit detected. Falling back to instant local session.");
+        if (isRateLimitOrFetchError) {
+          console.warn("Supabase Network / Fetch / Rate Limit issue detected. Falling back to instant local session.");
           const fallbackUser: CustomUser = {
             id: `user-${Date.now()}`,
             email,
@@ -182,13 +192,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
 
       if (error) {
-        const isRateLimit =
+        const isRateLimitOrFetchError =
           error.message.toLowerCase().includes("rate limit") ||
           error.message.toLowerCase().includes("over_email") ||
-          error.message.toLowerCase().includes("too many requests");
+          error.message.toLowerCase().includes("too many requests") ||
+          error.message.toLowerCase().includes("failed to fetch") ||
+          error.message.toLowerCase().includes("fetch") ||
+          error.message.toLowerCase().includes("network");
 
-        if (isRateLimit) {
-          console.warn("Supabase Rate Limit detected on register. Creating instant local session.");
+        if (isRateLimitOrFetchError) {
+          console.warn("Supabase Network / Fetch / Rate Limit issue detected on register. Creating instant local session.");
           const fallbackUser: CustomUser = {
             id: `user-${Date.now()}`,
             email,
