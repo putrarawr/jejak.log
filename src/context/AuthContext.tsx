@@ -178,9 +178,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     displayName: string
   ) => {
     try {
+      const normalizedEmail = email.trim().toLowerCase();
+
+      // Check local registered emails list for 1 email 1 account validation
+      const existingEmails: string[] = JSON.parse(
+        localStorage.getItem("jejaklog_registered_emails") || "[]"
+      );
+
+      if (existingEmails.includes(normalizedEmail)) {
+        return { error: "Email ini sudah terdaftar! Silakan masuk menggunakan akun Anda." };
+      }
+
       const redirectUrl = `${getRedirectUrl()}/app`;
       const { error, data } = await supabase.auth.signUp({
-        email,
+        email: normalizedEmail,
         password: pass,
         options: {
           emailRedirectTo: redirectUrl,
@@ -192,6 +203,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
 
       if (error) {
+        const isDuplicateEmail =
+          error.message.toLowerCase().includes("already registered") ||
+          error.message.toLowerCase().includes("already in use") ||
+          error.message.toLowerCase().includes("already exists") ||
+          error.message.toLowerCase().includes("user_already_exists");
+
+        if (isDuplicateEmail) {
+          return { error: "Email ini sudah terdaftar! Silakan masuk menggunakan akun Anda." };
+        }
+
         const isRateLimitOrFetchError =
           error.message.toLowerCase().includes("rate limit") ||
           error.message.toLowerCase().includes("over_email") ||
@@ -204,11 +225,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           console.warn("Supabase Network / Fetch / Rate Limit issue detected on register. Creating instant local session.");
           const fallbackUser: CustomUser = {
             id: `user-${Date.now()}`,
-            email,
-            username: username || email.split("@")[0],
+            email: normalizedEmail,
+            username: username || normalizedEmail.split("@")[0],
             displayName: displayName || username || "Petualang Jejak",
             isGuest: false,
           };
+          if (!existingEmails.includes(normalizedEmail)) {
+            existingEmails.push(normalizedEmail);
+            localStorage.setItem("jejaklog_registered_emails", JSON.stringify(existingEmails));
+          }
           localStorage.setItem("jejaklog_guest_user", JSON.stringify(fallbackUser));
           setUser(fallbackUser);
           setIsGuestMode(false);
@@ -219,15 +244,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (data.user) {
+        if (!existingEmails.includes(normalizedEmail)) {
+          existingEmails.push(normalizedEmail);
+          localStorage.setItem("jejaklog_registered_emails", JSON.stringify(existingEmails));
+        }
         localStorage.removeItem("jejaklog_guest_user");
         setIsGuestMode(false);
       }
       return {};
     } catch (e: any) {
+      const normalizedEmail = email.trim().toLowerCase();
       const fallbackUser: CustomUser = {
         id: `user-${Date.now()}`,
-        email,
-        username: username || email.split("@")[0],
+        email: normalizedEmail,
+        username: username || normalizedEmail.split("@")[0],
         displayName: displayName || username || "Petualang Jejak",
         isGuest: false,
       };

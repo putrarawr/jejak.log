@@ -200,8 +200,13 @@ export default function AppShell({
               {showUserMenu && (
                 <div className="absolute right-0 mt-2 w-60 bg-white dark:bg-mono-900 border border-mono-200 dark:border-mono-800 rounded-2xl shadow-2xl py-2 z-50 animate-in fade-in zoom-in-95 duration-150">
                   <div className="px-4 py-2 border-b border-mono-100 dark:border-mono-800">
-                    <p className="font-medium text-xs truncate">{user?.displayName || "Petualang"}</p>
-                    <p className="font-mono text-[10px] text-mono-400 truncate">@{user?.username}</p>
+                    <p className="font-medium text-xs truncate">{user?.displayName || user?.username || "Petualang"}</p>
+                    <p className="font-mono text-[11px] text-mono-500 dark:text-mono-400 truncate">@{user?.username || "explorer"}</p>
+                    {user?.email && (
+                      <p className="font-mono text-[10px] text-mono-400 dark:text-mono-500 truncate mt-0.5 flex items-center gap-1">
+                        <span>{user.email}</span>
+                      </p>
+                    )}
                   </div>
 
                   {isGuestMode && (

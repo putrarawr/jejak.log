@@ -69,7 +69,7 @@ const INITIAL_SAMPLE_PLACES = [
 import { createClient } from "@/lib/supabase/client";
 
 export default function AppPage() {
-  const { user } = useAuth();
+  const { user, isGuestMode } = useAuth();
   const supabase = createClient();
   const [activeTab, setActiveTab] = useState<"map" | "grid">("map");
   const [places, setPlaces] = useState<any[]>([]);
@@ -82,6 +82,24 @@ export default function AppPage() {
         setIsLoading(false);
         return;
       }
+
+      // Guest / Demo Mode gets sample places if they haven't saved any yet
+      if (isGuestMode) {
+        const savedGuestPlaces = localStorage.getItem("jejaklog_places_guest");
+        if (savedGuestPlaces) {
+          try {
+            setPlaces(JSON.parse(savedGuestPlaces));
+          } catch (e) {
+            setPlaces(INITIAL_SAMPLE_PLACES);
+          }
+        } else {
+          setPlaces(INITIAL_SAMPLE_PLACES);
+        }
+        setIsLoading(false);
+        return;
+      }
+
+      // Registered users start clean with NO dummy places
       try {
         const { data, error } = await supabase
           .from("places")
@@ -89,10 +107,11 @@ export default function AppPage() {
           .eq("user_id", user.id)
           .order("created_at", { ascending: false });
 
-        if (error || !data || data.length === 0) {
-          console.warn("Using sample fallback places:", error);
-          setPlaces(INITIAL_SAMPLE_PLACES);
-        } else {
+        if (error) {
+          console.warn("Database fetch error, checking local user storage:", error);
+          const savedUserPlaces = localStorage.getItem(`jejaklog_places_${user.id}`);
+          setPlaces(savedUserPlaces ? JSON.parse(savedUserPlaces) : []);
+        } else if (data) {
           const mapped = data.map((row: any) => ({
             id: row.id,
             name: row.name,
@@ -107,44 +126,76 @@ export default function AppPage() {
           setPlaces(mapped);
         }
       } catch (err) {
-        console.warn("Network issue fetching places, using fallback:", err);
-        setPlaces(INITIAL_SAMPLE_PLACES);
+        console.warn("Exception fetching places:", err);
+        const savedUserPlaces = localStorage.getItem(`jejaklog_places_${user.id}`);
+        setPlaces(savedUserPlaces ? JSON.parse(savedUserPlaces) : []);
       } finally {
         setIsLoading(false);
       }
     }
 
     fetchPlaces();
-  }, [user]);
+  }, [user, isGuestMode]);
 
   const handleAddPlace = async (newPlace: any) => {
     if (!user) return;
-    const { data, error } = await supabase
-      .from("places")
-      .insert([
-        {
-          user_id: user.id,
-          ...newPlace
-        }
-      ])
-      .select();
 
-    if (error) {
-      alert("Gagal menyimpan ke database: " + error.message);
-    } else if (data && data.length > 0) {
-      const inserted = data[0];
-      const mappedPlace = {
-        id: inserted.id,
-        name: inserted.name,
-        type: inserted.type,
-        latitude: inserted.latitude,
-        longitude: inserted.longitude,
-        notes: inserted.notes,
-        visitedAt: inserted.visited_at,
-        isPublic: inserted.is_public,
-        media: inserted.media_json,
+    if (isGuestMode) {
+      const createdPlace = {
+        id: `guest-place-${Date.now()}`,
+        ...newPlace,
       };
-      setPlaces([mappedPlace, ...places]);
+      const updated = [createdPlace, ...places];
+      setPlaces(updated);
+      localStorage.setItem("jejaklog_places_guest", JSON.stringify(updated));
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from("places")
+        .insert([
+          {
+            user_id: user.id,
+            ...newPlace
+          }
+        ])
+        .select();
+
+      if (error) {
+        console.warn("Cloud save issue, saving locally:", error.message);
+        const createdPlace = {
+          id: `local-place-${Date.now()}`,
+          ...newPlace,
+        };
+        const updated = [createdPlace, ...places];
+        setPlaces(updated);
+        localStorage.setItem(`jejaklog_places_${user.id}`, JSON.stringify(updated));
+      } else if (data && data.length > 0) {
+        const inserted = data[0];
+        const mappedPlace = {
+          id: inserted.id,
+          name: inserted.name,
+          type: inserted.type,
+          latitude: inserted.latitude,
+          longitude: inserted.longitude,
+          notes: inserted.notes,
+          visitedAt: inserted.visited_at,
+          isPublic: inserted.is_public,
+          media: inserted.media_json,
+        };
+        const updated = [mappedPlace, ...places];
+        setPlaces(updated);
+        localStorage.setItem(`jejaklog_places_${user.id}`, JSON.stringify(updated));
+      }
+    } catch (e) {
+      const createdPlace = {
+        id: `local-place-${Date.now()}`,
+        ...newPlace,
+      };
+      const updated = [createdPlace, ...places];
+      setPlaces(updated);
+      localStorage.setItem(`jejaklog_places_${user.id}`, JSON.stringify(updated));
     }
   };
 
