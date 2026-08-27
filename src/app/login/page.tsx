@@ -46,14 +46,16 @@ function LoginForm() {
     setLoading(true);
 
     const res = await loginWithEmail(email, password);
-    setLoading(false);
 
     if (res.error) {
+      setLoading(false);
       setErrorMsg(res.error);
       if (res.error.toLowerCase().includes("verifikasi") || res.error.toLowerCase().includes("dikonfirmasi")) {
         setShowResendButton(true);
       }
     } else {
+      toast.success("Berhasil masuk! Mengarahkan ke dashboard...");
+      // Keep loading as true while router push happens
       router.push("/app");
     }
   };

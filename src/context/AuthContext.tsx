@@ -234,17 +234,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setIsGuestMode(false);
 
       if (data?.session?.user) {
-        // Upsert user row to database
-        try {
-          await supabase.from("users").upsert({
-            id: data.session.user.id,
-            email: cleanEmail,
-            username:
-              data.session.user.user_metadata?.username || cleanEmail.split("@")[0],
-            display_name:
-              data.session.user.user_metadata?.display_name || cleanEmail.split("@")[0],
-          });
-        } catch (e) {}
+        // Upsert user row to database without blocking
+        supabase.from("users").upsert({
+          id: data.session.user.id,
+          email: cleanEmail,
+          username:
+            data.session.user.user_metadata?.username || cleanEmail.split("@")[0],
+          display_name:
+            data.session.user.user_metadata?.display_name || cleanEmail.split("@")[0],
+        }).then(() => {}).catch((e) => { console.warn("Failed to upsert user on login", e); });
       }
 
       return {};
@@ -314,6 +312,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
 
         return { error: error.message };
+      }
+
+      // Check for silent duplicate email (when Supabase email leakage protection is on)
+      if (data?.user?.identities && data.user.identities.length === 0) {
+        return { error: "Alamat email ini sudah terdaftar. Silakan masuk ke akun Anda." };
       }
 
       // Sign out immediately so unverified session is NOT logged in prior to clicking confirmation link

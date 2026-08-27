@@ -215,13 +215,6 @@ export default function ExploreCommunityPage() {
                         <p className="font-mono text-xs text-mono-400">@{place.username || "explorer"}</p>
                       </div>
                     </Link>
-
-                    <Link
-                      href={`/profile/${place.username || "explorer"}`}
-                      className="px-3 py-1 bg-mono-100 dark:bg-mono-800 text-mono-700 dark:text-mono-300 font-mono text-[11px] font-bold rounded-xl hover:bg-mono-200 transition"
-                    >
-                      Lihat Profil
-                    </Link>
                   </div>
 
                   {/* Reels Media Card */}

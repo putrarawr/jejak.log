@@ -32,15 +32,16 @@ export default function RegisterPage() {
     setLoading(true);
 
     const res = await registerWithEmail(email, password, username, displayName || username);
-    setLoading(false);
 
     if (res.error) {
+      setLoading(false);
       setErrorMsg(res.error);
     } else if (res.requiresVerification) {
+      setLoading(false);
       setRegisteredEmail(res.email || email);
       setIsVerificationStep(true);
     } else {
-      toast.success("Akun berhasil dibuat!");
+      toast.success("Akun berhasil dibuat! Mengarahkan ke dashboard...");
       router.push("/app");
     }
   };
