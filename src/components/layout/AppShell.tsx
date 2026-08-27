@@ -6,6 +6,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import ThemeToggle from "@/components/theme-toggle";
 import { createClient } from "@/lib/supabase/client";
+import NotificationInbox from "@/components/dashboard/NotificationInbox";
 import { exportToGPX, exportToKML } from "@/lib/utils/exportGeo";
 import { toast } from "sonner";
 import {
@@ -276,6 +277,8 @@ export default function AppShell({
             </Link>
 
             <ThemeToggle />
+            
+            <NotificationInbox />
 
             {/* User Avatar Menu */}
             {user ? (

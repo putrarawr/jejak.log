@@ -281,6 +281,27 @@ export default function LandingPage() {
                   </div>
                 </Reveal>
               ))}
+
+              {/* Call-to-Action Cards if grid has less than 3 profiles */}
+              {publicProfiles.length > 0 && publicProfiles.length < 3 && Array.from({ length: 3 - publicProfiles.length }).map((_, i) => (
+                <Reveal key={`cta-${i}`} delay={(publicProfiles.length + i) * 100}>
+                  <Link
+                    href="/register"
+                    className="group bg-mono-50 dark:bg-mono-950 border-2 border-dashed border-mono-200 dark:border-mono-800 rounded-3xl p-6 flex flex-col items-center justify-center h-full text-center space-y-4 hover:border-mono-900 dark:hover:border-mono-100 hover:bg-mono-100 dark:hover:bg-mono-900 transition-all duration-300 min-h-[220px]"
+                  >
+                    <div className="w-12 h-12 rounded-full bg-mono-200 dark:bg-mono-800 text-mono-400 group-hover:text-mono-900 dark:group-hover:text-mono-100 flex items-center justify-center transition-colors">
+                      <Sparkles className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-base text-mono-900 dark:text-mono-100">Jadilah Bagian dari Kami</h3>
+                      <p className="text-xs text-mono-500 dark:text-mono-400 mt-1">Daftar sekarang dan bagikan eksplorasimu.</p>
+                    </div>
+                    <span className="px-4 py-2 bg-white dark:bg-mono-950 border border-mono-200 dark:border-mono-800 text-mono-900 dark:text-mono-100 font-mono text-xs font-bold rounded-xl mt-2 transition shadow-sm group-hover:shadow">
+                      Mulai Sekarang
+                    </span>
+                  </Link>
+                </Reveal>
+              ))}
             </div>
           </section>
         )}

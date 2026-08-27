@@ -30,6 +30,9 @@ export const metadata: Metadata = {
   },
   description:
     "Catat tempat yang sudah kamu jelajahi lengkap dengan foto, video, dan pin di peta. Arsip personal, bukan itinerary.",
+  verification: {
+    google: "_-_ZSM5PIqdh4ppjurNO99p2nPRTHxHVG6yg-PyJKUM",
+  },
 };
 
 const themeInit = `

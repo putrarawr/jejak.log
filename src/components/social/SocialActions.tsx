@@ -108,26 +108,30 @@ export default function SocialActions({ placeId, isPublic = true }: SocialAction
   };
 
   const handleToggleLike = async () => {
-    const actorId = user?.id || getDeviceFingerprint();
+    if (!user || isGuestMode) {
+      toast.error("Silakan login terlebih dahulu untuk berinteraksi.");
+      return;
+    }
+
+    const actorId = user.id;
 
     const nextIsLiked = !isLiked;
     const nextCount = nextIsLiked ? likesCount + 1 : Math.max(0, likesCount - 1);
     setIsLiked(nextIsLiked);
     setLikesCount(nextCount);
 
-    if (!isGuestMode && user) {
-      try {
-        if (nextIsLiked) {
-          await supabase.from("likes").insert([{ place_id: placeId, user_id: user.id }]);
-          toast.success("Disukai");
-        } else {
-          await supabase.from("likes").delete().eq("place_id", placeId).eq("user_id", user.id);
-        }
-      } catch (err) {
-        handleLocalLike(nextIsLiked, actorId);
+    try {
+      if (nextIsLiked) {
+        await supabase.from("likes").insert([{ place_id: placeId, user_id: user.id }]);
+        toast.success("Disukai");
+      } else {
+        await supabase.from("likes").delete().eq("place_id", placeId).eq("user_id", user.id);
       }
-    } else {
-      handleLocalLike(nextIsLiked, actorId);
+    } catch (err) {
+      console.warn("Gagal menyukai:", err);
+      toast.error("Terjadi kesalahan jaringan.");
+      setIsLiked(!nextIsLiked);
+      setLikesCount(nextIsLiked ? Math.max(0, likesCount - 1) : likesCount + 1);
     }
   };
 
@@ -145,7 +149,11 @@ export default function SocialActions({ placeId, isPublic = true }: SocialAction
 
   const handleAddComment = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newComment.trim() || !user || isSubmitting) return;
+    if (!user || isGuestMode) {
+      toast.error("Silakan login terlebih dahulu untuk berinteraksi.");
+      return;
+    }
+    if (!newComment.trim() || isSubmitting) return;
 
     setIsSubmitting(true);
     const commentObj: CommentItem = {

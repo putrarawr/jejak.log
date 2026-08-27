@@ -64,7 +64,7 @@ export default function CaptchaWidget({ onVerify }: CaptchaWidgetProps) {
       </div>
 
       <div className="flex items-center gap-2">
-        <div className="px-3 py-1.5 bg-white dark:bg-mono-950 border border-mono-300 dark:border-mono-700 rounded-lg font-mono font-bold text-sm select-none tracking-widest text-mono-900 dark:text-mono-100 shadow-inner">
+        <div className="px-3 py-1.5 bg-white dark:bg-mono-950 border border-mono-300 dark:border-mono-700 rounded-lg font-mono font-bold text-sm select-none tracking-widest text-mono-900 dark:text-mono-100 shadow-inner shrink-0 whitespace-nowrap">
           {num1} + {num2} = ?
         </div>
 
