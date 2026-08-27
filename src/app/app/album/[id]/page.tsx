@@ -362,7 +362,7 @@ export default function DedicatedAlbumPage() {
   const currentMediaItem = mediaList[activeMediaIndex] || null;
 
   // Determine ownership
-  const isOwner = isGuestMode ? true : (user && place.user_id === user.id);
+  const isOwner = (user && place.user_id === user.id) || (isGuestMode && !place.user_id);
 
   // IDOR Protection: Block access if private and not owner
   if (!isOwner && !place.isPublic) {
