@@ -19,8 +19,9 @@ interface PlaceItem {
 
 interface AlbumGridProps {
   places: PlaceItem[];
-  onSelectPlace: (place: PlaceItem) => void;
+  onSelectPlace?: (place: PlaceItem) => void;
   onToggleFavorite?: (id: string) => void;
+  onDeletePlace?: (id: string) => void;
 }
 
 export default function AlbumGrid({ places, onSelectPlace, onToggleFavorite }: AlbumGridProps) {

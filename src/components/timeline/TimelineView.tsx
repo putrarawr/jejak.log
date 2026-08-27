@@ -19,6 +19,7 @@ interface PlaceItem {
 interface TimelineViewProps {
   places: PlaceItem[];
   onSelectPlace?: (place: PlaceItem) => void;
+  onDeletePlace?: (id: string) => void;
 }
 
 export default function TimelineView({ places, onSelectPlace }: TimelineViewProps) {
