@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import ThemeToggle from "@/components/theme-toggle";
 import { createClient } from "@/lib/supabase/client";
@@ -23,23 +23,31 @@ import {
 
 interface AppShellProps {
   children: React.ReactNode;
-  activeTab: "map" | "grid" | "timeline";
-  onTabChange: (tab: "map" | "grid" | "timeline") => void;
-  onOpenAddModal: () => void;
-  totalPlacesCount: number;
+  activeTab?: "map" | "grid" | "timeline";
+  onTabChange?: (tab: "map" | "grid" | "timeline") => void;
+  onOpenAddModal?: () => void;
+  totalPlacesCount?: number;
+  hideBottomNav?: boolean;
+  hideFloatingAdd?: boolean;
 }
 
 export default function AppShell({
   children,
-  activeTab,
+  activeTab = "map",
   onTabChange,
   onOpenAddModal,
-  totalPlacesCount,
+  totalPlacesCount = 0,
+  hideBottomNav = false,
+  hideFloatingAdd = false,
 }: AppShellProps) {
   const { user, isGuestMode, logout } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const supabase = createClient();
+
+  const isAppMainPage = pathname === "/app";
+  const isExplorePage = pathname === "/app/explore";
 
   const handleLogout = async () => {
     await logout();
@@ -66,7 +74,7 @@ export default function AppShell({
       a.click();
       URL.revokeObjectURL(url);
       setShowUserMenu(false);
-      toast.success("📁 Data berhasil dicadangkan!");
+      toast.success("Data berhasil dicadangkan");
     } catch (err) {
       toast.error("Gagal mencadangkan data.");
     }
@@ -102,7 +110,7 @@ export default function AppShell({
       a.click();
       URL.revokeObjectURL(url);
       setShowUserMenu(false);
-      toast.success("🗺️ Berkas GPX berhasil diekspor!");
+      toast.success("Berkas GPX berhasil diekspor");
     } catch (err) {
       toast.error("Gagal mengeskpor format GPX.");
     }
@@ -138,7 +146,7 @@ export default function AppShell({
       a.click();
       URL.revokeObjectURL(url);
       setShowUserMenu(false);
-      toast.success("🌍 Berkas Google Earth KML berhasil diekspor!");
+      toast.success("Berkas KML berhasil diekspor");
     } catch (err) {
       toast.error("Gagal mengeskpor KML.");
     }
@@ -195,74 +203,80 @@ export default function AppShell({
       <header className="sticky top-0 z-40 bg-white/80 dark:bg-mono-900/80 backdrop-blur-md border-b border-mono-200 dark:border-mono-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
           {/* Logo & Total Count Badge */}
-          <div className="flex items-center gap-3">
-            <Link href="/" className="flex items-center gap-2 font-mono font-bold text-base tracking-tight">
-              <div className="w-7 h-7 rounded-lg bg-mono-900 dark:bg-mono-100 text-mono-100 dark:text-mono-900 flex items-center justify-center">
+          <div className="flex items-center gap-3 shrink-0">
+            <Link href="/" className="flex items-center gap-2 font-mono font-bold text-base tracking-tight shrink-0">
+              <div className="w-7 h-7 rounded-lg bg-mono-900 dark:bg-mono-100 text-mono-100 dark:text-mono-900 flex items-center justify-center shrink-0">
                 <Compass className="w-4 h-4" />
               </div>
               <span className="hidden sm:inline">Jejak.log</span>
             </Link>
-            <div className="px-2.5 py-0.5 rounded-full bg-mono-200/60 dark:bg-mono-800/60 font-mono text-xs text-mono-600 dark:text-mono-400">
-              {totalPlacesCount} singgahan
-            </div>
+            {isAppMainPage && (
+              <div className="px-2.5 py-0.5 rounded-full bg-mono-200/60 dark:bg-mono-800/60 font-mono text-xs text-mono-600 dark:text-mono-400 shrink-0 whitespace-nowrap">
+                {totalPlacesCount} singgahan
+              </div>
+            )}
             {isGuestMode && (
-              <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/30 text-amber-600 dark:text-amber-400 text-xs font-mono">
+              <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/30 text-amber-600 dark:text-amber-400 text-xs font-mono shrink-0 whitespace-nowrap">
                 <ShieldAlert className="w-3 h-3" /> Mode Demo
               </span>
             )}
           </div>
 
-          {/* Center Tabs for Desktop */}
-          <div className="hidden md:flex items-center gap-1 bg-mono-100 dark:bg-mono-800/60 p-1 rounded-xl border border-mono-200 dark:border-mono-700">
-            <button
-              onClick={() => onTabChange("map")}
-              className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-medium transition ${
-                activeTab === "map"
-                  ? "bg-white dark:bg-mono-900 text-mono-900 dark:text-mono-100 shadow-sm font-bold"
-                  : "text-mono-500 dark:text-mono-400 hover:text-mono-900 dark:hover:text-mono-100"
-              }`}
-            >
-              <MapIcon className="w-3.5 h-3.5" />
-              Peta Eksplorasi
-            </button>
-            <button
-              onClick={() => onTabChange("grid")}
-              className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-medium transition ${
-                activeTab === "grid"
-                  ? "bg-white dark:bg-mono-900 text-mono-900 dark:text-mono-100 shadow-sm font-bold"
-                  : "text-mono-500 dark:text-mono-400 hover:text-mono-900 dark:hover:text-mono-100"
-              }`}
-            >
-              <Grid className="w-3.5 h-3.5" />
-              Grid Album
-            </button>
-            <button
-              onClick={() => onTabChange("timeline")}
-              className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-medium transition ${
-                activeTab === "timeline"
-                  ? "bg-white dark:bg-mono-900 text-mono-900 dark:text-mono-100 shadow-sm font-bold"
-                  : "text-mono-500 dark:text-mono-400 hover:text-mono-900 dark:hover:text-mono-100"
-              }`}
-            >
-              <Compass className="w-3.5 h-3.5" />
-              Timeline Kronologis
-            </button>
-          </div>
+          {/* Center Tabs for Desktop (Only on /app main page) */}
+          {isAppMainPage && onTabChange && (
+            <div className="hidden md:flex items-center gap-1 bg-mono-100 dark:bg-mono-800/60 p-1 rounded-xl border border-mono-200 dark:border-mono-700">
+              <button
+                onClick={() => onTabChange("map")}
+                className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-medium shrink-0 whitespace-nowrap transition ${
+                  activeTab === "map"
+                    ? "bg-white dark:bg-mono-900 text-mono-900 dark:text-mono-100 shadow-sm font-bold"
+                    : "text-mono-500 dark:text-mono-400 hover:text-mono-900 dark:hover:text-mono-100"
+                }`}
+              >
+                <MapIcon className="w-3.5 h-3.5" />
+                Peta Eksplorasi
+              </button>
+              <button
+                onClick={() => onTabChange("grid")}
+                className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-medium shrink-0 whitespace-nowrap transition ${
+                  activeTab === "grid"
+                    ? "bg-white dark:bg-mono-900 text-mono-900 dark:text-mono-100 shadow-sm font-bold"
+                    : "text-mono-500 dark:text-mono-400 hover:text-mono-900 dark:hover:text-mono-100"
+                }`}
+              >
+                <Grid className="w-3.5 h-3.5" />
+                Grid Album
+              </button>
+              <button
+                onClick={() => onTabChange("timeline")}
+                className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-medium shrink-0 whitespace-nowrap transition ${
+                  activeTab === "timeline"
+                    ? "bg-white dark:bg-mono-900 text-mono-900 dark:text-mono-100 shadow-sm font-bold"
+                    : "text-mono-500 dark:text-mono-400 hover:text-mono-900 dark:hover:text-mono-100"
+                }`}
+              >
+                <Compass className="w-3.5 h-3.5" />
+                Timeline Kronologis
+              </button>
+            </div>
+          )}
 
           {/* Right Action Controls */}
-          <div className="flex items-center gap-2">
-            <Link
-              href="/app/explore"
-              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono font-semibold text-mono-700 dark:text-mono-300 hover:bg-mono-100 dark:hover:bg-mono-800 rounded-xl transition"
-            >
-              <Compass className="w-3.5 h-3.5" />
-              Jelajah Komunitas
-            </Link>
+          <div className="flex items-center gap-2 shrink-0">
+            {!isExplorePage && (
+              <Link
+                href="/app/explore"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono font-semibold text-mono-700 dark:text-mono-300 hover:bg-mono-100 dark:hover:bg-mono-800 rounded-xl transition shrink-0 whitespace-nowrap"
+              >
+                <Compass className="w-3.5 h-3.5" />
+                <span>Jelajah</span>
+              </Link>
+            )}
 
             <Link
               href="/"
               title="Kembali ke Beranda"
-              className="hidden sm:flex p-1.5 text-mono-500 hover:text-mono-900 dark:text-mono-400 dark:hover:text-mono-100 hover:bg-mono-100 dark:hover:bg-mono-800 rounded-lg transition"
+              className="p-1.5 text-mono-500 hover:text-mono-900 dark:text-mono-400 dark:hover:text-mono-100 hover:bg-mono-100 dark:hover:bg-mono-800 rounded-lg transition shrink-0"
             >
               <Home className="w-5 h-5" />
             </Link>
@@ -270,10 +284,10 @@ export default function AppShell({
             <ThemeToggle />
 
             {/* User Avatar Menu */}
-            <div className="relative">
+            <div className="relative shrink-0">
               <button
                 onClick={() => setShowUserMenu(!showUserMenu)}
-                className="w-8 h-8 rounded-full bg-mono-200 dark:bg-mono-800 border border-mono-300 dark:border-mono-700 flex items-center justify-center font-mono text-xs font-semibold overflow-hidden hover:opacity-80 transition"
+                className="w-8 h-8 rounded-full bg-mono-200 dark:bg-mono-800 border border-mono-300 dark:border-mono-700 flex items-center justify-center font-mono text-xs font-semibold overflow-hidden hover:opacity-80 transition shrink-0"
               >
                 {user?.displayName ? user.displayName.charAt(0).toUpperCase() : <User className="w-4 h-4" />}
               </button>
@@ -300,6 +314,12 @@ export default function AppShell({
                       <span>Pengaturan Profil Akun</span>
                     </Link>
                   </div>
+
+                  {isGuestMode && (
+                    <div className="px-4 py-2 text-[11px] text-amber-600 dark:text-amber-400 bg-amber-500/5 border-b border-mono-100 dark:border-mono-800">
+                      Anda berada dalam Mode Demo. Data disimpan di perangkat lokal.
+                    </div>
+                  )}
 
                   {/* Backup & Restore Action Items */}
                   <div className="py-1 border-b border-mono-100 dark:border-mono-800">
@@ -356,57 +376,60 @@ export default function AppShell({
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto p-3 sm:p-6 flex flex-col">{children}</main>
 
-      {/* Floating Centered Action Button (+ Tambah Singgahan) */}
-      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50">
-        <button
-          onClick={onOpenAddModal}
-          className="px-5 py-3 rounded-full bg-mono-900 text-mono-100 dark:bg-mono-100 dark:text-mono-900 font-mono text-xs font-bold shadow-2xl hover:scale-105 active:scale-95 transition-all duration-200 flex items-center gap-2 border border-mono-700 dark:border-mono-300 backdrop-blur-md"
-        >
-          <PlusCircle className="w-4.5 h-4.5" />
-          <span>Tambah Singgahan</span>
-        </button>
-      </div>
+      {/* Floating Action Button & Mobile Bottom Nav ONLY on /app main page */}
+      {isAppMainPage && !hideFloatingAdd && onOpenAddModal && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50">
+          <button
+            onClick={onOpenAddModal}
+            className="px-5 py-3 rounded-full bg-mono-900 text-mono-100 dark:bg-mono-100 dark:text-mono-900 font-mono text-xs font-bold shadow-2xl hover:scale-105 active:scale-95 transition-all duration-200 flex items-center gap-2 border border-mono-700 dark:border-mono-300 backdrop-blur-md shrink-0 whitespace-nowrap min-h-[44px]"
+          >
+            <PlusCircle className="w-4.5 h-4.5" />
+            <span>Tambah Singgahan</span>
+          </button>
+        </div>
+      )}
 
-      {/* Mobile Bottom Navigation Bar */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/90 dark:bg-mono-900/90 backdrop-blur-lg border-t border-mono-200 dark:border-mono-800 px-6 py-2 flex items-center justify-between shadow-2xl">
-        <button
-          onClick={() => onTabChange("map")}
-          className={`flex flex-col items-center gap-0.5 p-1 transition ${
-            activeTab === "map"
-              ? "text-mono-900 dark:text-mono-100 font-semibold"
-              : "text-mono-400 hover:text-mono-700 dark:hover:text-mono-300"
-          }`}
-        >
-          <MapIcon className="w-4 h-4" />
-          <span className="text-[9px] font-mono">Peta</span>
-        </button>
+      {isAppMainPage && !hideBottomNav && onTabChange && (
+        <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/90 dark:bg-mono-900/90 backdrop-blur-lg border-t border-mono-200 dark:border-mono-800 px-6 py-2 flex items-center justify-between shadow-2xl">
+          <button
+            onClick={() => onTabChange("map")}
+            className={`flex flex-col items-center gap-0.5 p-1 transition shrink-0 ${
+              activeTab === "map"
+                ? "text-mono-900 dark:text-mono-100 font-semibold"
+                : "text-mono-400 hover:text-mono-700 dark:hover:text-mono-300"
+            }`}
+          >
+            <MapIcon className="w-4 h-4" />
+            <span className="text-[9px] font-mono">Peta</span>
+          </button>
 
-        <button
-          onClick={() => onTabChange("grid")}
-          className={`flex flex-col items-center gap-0.5 p-1 transition ${
-            activeTab === "grid"
-              ? "text-mono-900 dark:text-mono-100 font-semibold"
-              : "text-mono-400 hover:text-mono-700 dark:hover:text-mono-300"
-          }`}
-        >
-          <Grid className="w-4 h-4" />
-          <span className="text-[9px] font-mono">Grid</span>
-        </button>
+          <button
+            onClick={() => onTabChange("grid")}
+            className={`flex flex-col items-center gap-0.5 p-1 transition shrink-0 ${
+              activeTab === "grid"
+                ? "text-mono-900 dark:text-mono-100 font-semibold"
+                : "text-mono-400 hover:text-mono-700 dark:hover:text-mono-300"
+            }`}
+          >
+            <Grid className="w-4 h-4" />
+            <span className="text-[9px] font-mono">Grid</span>
+          </button>
 
-        <div className="w-24" /> {/* Spacer for Floating Center Button */}
+          <div className="w-24 shrink-0" /> {/* Spacer for Floating Center Button */}
 
-        <button
-          onClick={() => onTabChange("timeline")}
-          className={`flex flex-col items-center gap-0.5 p-1 transition ${
-            activeTab === "timeline"
-              ? "text-mono-900 dark:text-mono-100 font-semibold"
-              : "text-mono-400 hover:text-mono-700 dark:hover:text-mono-300"
-          }`}
-        >
-          <Compass className="w-4 h-4" />
-          <span className="text-[9px] font-mono">Timeline</span>
-        </button>
-      </nav>
+          <button
+            onClick={() => onTabChange("timeline")}
+            className={`flex flex-col items-center gap-0.5 p-1 transition shrink-0 ${
+              activeTab === "timeline"
+                ? "text-mono-900 dark:text-mono-100 font-semibold"
+                : "text-mono-400 hover:text-mono-700 dark:hover:text-mono-300"
+            }`}
+          >
+            <Compass className="w-4 h-4" />
+            <span className="text-[9px] font-mono">Timeline</span>
+          </button>
+        </nav>
+      )}
     </div>
   );
 }

@@ -13,7 +13,6 @@ import {
   User,
   Map as MapIcon,
   Sparkles,
-  Search,
   ExternalLink,
 } from "lucide-react";
 import { Reveal } from "@/components/reveal";
@@ -29,90 +28,6 @@ const InteractiveMap = dynamic(() => import("@/components/map/InteractiveMap"), 
     </div>
   ),
 });
-
-const SHOWCASE_PUBLIC_PROFILES = [
-  {
-    username: "putrarawr",
-    displayName: "Putra Petualang",
-    avatar: "P",
-    placesCount: 12,
-    topLocation: "Dieng & Jakarta",
-    latestImage: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800&q=80",
-    bio: "Pencinta alam dan kopi lokal Indonesia.",
-  },
-  {
-    username: "explorer_id",
-    displayName: "Arka Nusantari",
-    avatar: "A",
-    placesCount: 28,
-    topLocation: "Borobudur & Jogja",
-    latestImage: "https://images.unsplash.com/photo-1596402184320-417e7178b2cd?w=800&q=80",
-    bio: "Menyelusuri warisan budaya nusantara.",
-  },
-  {
-    username: "coffee_notes",
-    displayName: "Siti Rahma",
-    avatar: "S",
-    placesCount: 19,
-    topLocation: "Bandung & Jakarta",
-    latestImage: "https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=800&q=80",
-    bio: "Mencari spot kopi unik dengan desain monokrom.",
-  },
-];
-
-const INITIAL_SAMPLE_PLACES = [
-  {
-    id: "sample-1",
-    name: "Kopi Titik Temu",
-    type: "kuliner",
-    latitude: -6.2297,
-    longitude: 106.8074,
-    notes: "Spot kopi yang estetik dengan arsitektur monokrom yang tenang di Jakarta.",
-    visitedAt: "2026-08-20T10:00:00.000Z",
-    isPublic: true,
-    media: [
-      {
-        id: "m-1",
-        storageUrl: "https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=800&q=80",
-        type: "photo",
-      },
-    ],
-  },
-  {
-    id: "sample-2",
-    name: "Bukit Sikunir Dieng",
-    type: "alam",
-    latitude: -7.2307,
-    longitude: 109.9082,
-    notes: "Golden sunrise terbaik di Dieng. Hawanya sangat dingin tapi terbayar dengan pemandangannya.",
-    visitedAt: "2026-08-15T05:30:00.000Z",
-    isPublic: true,
-    media: [
-      {
-        id: "m-2",
-        storageUrl: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800&q=80",
-        type: "photo",
-      },
-    ],
-  },
-  {
-    id: "sample-3",
-    name: "Kota Tua Jakarta",
-    type: "sejarah",
-    latitude: -6.1338,
-    longitude: 106.8143,
-    notes: "Bersepeda ontel keliling museum Fatahillah.",
-    visitedAt: "2026-08-01T15:00:00.000Z",
-    isPublic: true,
-    media: [
-      {
-        id: "m-3",
-        storageUrl: "https://images.unsplash.com/photo-1555899434-94d1368aa7af?w=800&q=80",
-        type: "photo",
-      },
-    ],
-  },
-];
 
 const features = [
   {
@@ -136,41 +51,56 @@ export default function LandingPage() {
   const { user, isGuestMode } = useAuth();
   const hasActiveSession = Boolean(user || isGuestMode);
   const supabase = createClient();
-  const [places, setPlaces] = useState<any[]>(INITIAL_SAMPLE_PLACES);
+  const [places, setPlaces] = useState<any[]>([]);
+  const [publicProfiles, setPublicProfiles] = useState<any[]>([]);
   const [isMapLoaded, setIsMapLoaded] = useState(false);
 
   useEffect(() => {
-    async function fetchUserPlaces() {
-      if (user) {
-        const { data } = await supabase
-          .from("places")
-          .select("*")
-          .eq("user_id", user.id)
-          .order("created_at", { ascending: false });
+    async function fetchData() {
+      try {
+        // Fetch user places if logged in
+        if (user) {
+          const { data } = await supabase
+            .from("places")
+            .select("*")
+            .eq("user_id", user.id)
+            .order("created_at", { ascending: false });
 
-        if (data && data.length > 0) {
-          const mapped = data.map((row: any) => ({
-            id: row.id,
-            name: row.name,
-            type: row.type,
-            latitude: row.latitude,
-            longitude: row.longitude,
-            notes: row.notes,
-            visitedAt: row.visited_at,
-            isPublic: row.is_public,
-            media: row.media_json,
-          }));
-          setPlaces(mapped);
+          if (data && data.length > 0) {
+            const mapped = data.map((row: any) => ({
+              id: row.id,
+              name: row.name,
+              type: row.type,
+              latitude: row.latitude,
+              longitude: row.longitude,
+              notes: row.notes,
+              visitedAt: row.visited_at,
+              isPublic: row.is_public,
+              media: row.media_json,
+            }));
+            setPlaces(mapped);
+          }
         }
+
+        // Fetch real public profiles from database
+        const { data: usersData } = await supabase
+          .from("users")
+          .select("*")
+          .limit(6);
+
+        if (usersData && usersData.length > 0) {
+          setPublicProfiles(usersData);
+        } else {
+          setPublicProfiles([]);
+        }
+      } catch (e) {
+        setPublicProfiles([]);
+      } finally {
+        setIsMapLoaded(true);
       }
-      setIsMapLoaded(true);
     }
 
-    if (user) {
-      fetchUserPlaces();
-    } else {
-      setTimeout(() => setIsMapLoaded(true), 500);
-    }
+    fetchData();
   }, [user]);
 
   return (
@@ -181,9 +111,9 @@ export default function LandingPage() {
 
       {/* Top Navigation */}
       <header className="sticky top-0 z-50 border-b border-mono-200/60 dark:border-mono-800/50 bg-white/80 dark:bg-mono-950/80 backdrop-blur-xl">
-        <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-4 md:px-8">
-          <Link href="/" className="flex items-center gap-2.5 group">
-            <div className="w-8 h-8 rounded-xl bg-mono-900 dark:bg-mono-100 text-mono-100 dark:text-mono-900 flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform">
+        <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-4 sm:px-6 py-3.5 md:px-8">
+          <Link href="/" className="flex items-center gap-2.5 group shrink-0">
+            <div className="w-8 h-8 rounded-xl bg-mono-900 dark:bg-mono-100 text-mono-100 dark:text-mono-900 flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform shrink-0">
               <Compass className="w-4 h-4" />
             </div>
             <span className="font-mono font-bold tracking-tight text-lg">Jejak.log</span>
@@ -193,47 +123,47 @@ export default function LandingPage() {
           <div className="hidden md:flex items-center gap-6 font-mono text-xs">
             <Link
               href="/app/explore"
-              className="text-mono-600 dark:text-mono-400 hover:text-mono-900 dark:hover:text-mono-100 transition-colors flex items-center gap-1.5"
+              className="text-mono-600 dark:text-mono-400 hover:text-mono-900 dark:hover:text-mono-100 transition-colors flex items-center gap-1.5 shrink-0 whitespace-nowrap"
             >
               <Globe className="w-3.5 h-3.5" />
               <span>Jelajah Komunitas</span>
             </Link>
             <Link
               href="/app"
-              className="text-mono-600 dark:text-mono-400 hover:text-mono-900 dark:hover:text-mono-100 transition-colors flex items-center gap-1.5"
+              className="text-mono-600 dark:text-mono-400 hover:text-mono-900 dark:hover:text-mono-100 transition-colors flex items-center gap-1.5 shrink-0 whitespace-nowrap"
             >
               <MapIcon className="w-3.5 h-3.5" />
               <span>Peta & Grid Album</span>
             </Link>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
             <ThemeToggle />
             {hasActiveSession ? (
               <Link
                 href="/app"
-                className="inline-flex h-10 items-center gap-2 rounded-xl bg-mono-900 dark:bg-mono-100 px-5 text-xs font-bold text-mono-100 dark:text-mono-900 transition-all hover:-translate-y-0.5 shadow"
+                className="inline-flex h-10 items-center gap-2 rounded-xl bg-mono-900 dark:bg-mono-100 px-4 sm:px-5 text-xs font-bold text-mono-100 dark:text-mono-900 transition-all hover:-translate-y-0.5 shadow shrink-0 whitespace-nowrap min-h-[40px]"
               >
                 <span>Dashboard Saya</span>
                 <ArrowRight className="w-4 h-4" />
               </Link>
             ) : (
-              <div className="flex items-center gap-2 sm:gap-3">
+              <div className="flex items-center gap-2 sm:gap-3 shrink-0">
                 <Link
                   href="/app/explore"
-                  className="sm:hidden inline-flex h-9 items-center justify-center rounded-xl px-3 text-xs font-bold text-mono-700 dark:text-mono-300 border border-mono-200 dark:border-mono-800"
+                  className="sm:hidden inline-flex h-10 items-center justify-center rounded-xl px-3 text-xs font-bold text-mono-700 dark:text-mono-300 border border-mono-200 dark:border-mono-800 shrink-0 whitespace-nowrap min-h-[40px]"
                 >
                   Jelajah
                 </Link>
                 <Link
                   href="/login"
-                  className="hidden sm:inline-flex h-10 items-center justify-center rounded-xl px-4 text-xs font-bold text-mono-600 dark:text-mono-400 hover:text-mono-900 dark:hover:text-mono-100 transition-colors"
+                  className="hidden sm:inline-flex h-10 items-center justify-center rounded-xl px-4 text-xs font-bold text-mono-600 dark:text-mono-400 hover:text-mono-900 dark:hover:text-mono-100 transition-colors shrink-0 whitespace-nowrap min-h-[40px]"
                 >
                   Masuk
                 </Link>
                 <Link
                   href="/register"
-                  className="inline-flex h-10 items-center justify-center rounded-xl bg-mono-900 dark:bg-mono-100 px-4 sm:px-5 text-xs font-bold text-mono-100 dark:text-mono-900 transition-all hover:-translate-y-0.5 shadow"
+                  className="inline-flex h-10 items-center justify-center rounded-xl bg-mono-900 dark:bg-mono-100 px-4 sm:px-5 text-xs font-bold text-mono-100 dark:text-mono-900 transition-all hover:-translate-y-0.5 shadow shrink-0 whitespace-nowrap min-h-[40px]"
                 >
                   Daftar
                 </Link>
@@ -249,7 +179,7 @@ export default function LandingPage() {
           {/* Hero Content */}
           <div className="w-full lg:w-1/2 flex flex-col items-start text-left">
             <Reveal>
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-mono-100 dark:bg-mono-900 border border-mono-200 dark:border-mono-800 font-mono text-[11px] text-mono-600 dark:text-mono-400 mb-6">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-mono-100 dark:bg-mono-900 border border-mono-200 dark:border-mono-800 font-mono text-[11px] text-mono-600 dark:text-mono-400 mb-6 shrink-0 whitespace-nowrap">
                 <Sparkles className="w-3.5 h-3.5 text-mono-500" />
                 <span>Arsip Personal & Profil Eksplorasi Publik</span>
               </div>
@@ -269,7 +199,7 @@ export default function LandingPage() {
               <div className="mt-8 flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
                 <Link
                   href={hasActiveSession ? "/app" : "/register"}
-                  className="group w-full sm:w-auto inline-flex h-13 items-center justify-center gap-3 rounded-2xl bg-mono-900 dark:bg-mono-100 px-8 text-sm font-bold text-mono-100 dark:text-mono-900 transition-all hover:-translate-y-1 shadow-lg"
+                  className="group w-full sm:w-auto inline-flex h-13 min-h-[48px] items-center justify-center gap-3 rounded-2xl bg-mono-900 dark:bg-mono-100 px-8 text-sm font-bold text-mono-100 dark:text-mono-900 transition-all hover:-translate-y-1 shadow-lg shrink-0 whitespace-nowrap"
                 >
                   <span>{hasActiveSession ? "Lanjutkan Petualangan" : "Mulai Buat Jurnal Peta"}</span>
                   <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1.5" />
@@ -277,7 +207,7 @@ export default function LandingPage() {
 
                 <Link
                   href="/app/explore"
-                  className="group w-full sm:w-auto inline-flex h-13 items-center justify-center gap-2.5 rounded-2xl border border-mono-200 dark:border-mono-800 bg-white/50 dark:bg-mono-900/50 backdrop-blur-sm px-7 text-sm font-bold text-mono-700 dark:text-mono-300 transition-all hover:bg-white dark:hover:bg-mono-900"
+                  className="group w-full sm:w-auto inline-flex h-13 min-h-[48px] items-center justify-center gap-2.5 rounded-2xl border border-mono-200 dark:border-mono-800 bg-white/50 dark:bg-mono-900/50 backdrop-blur-sm px-7 text-sm font-bold text-mono-700 dark:text-mono-300 transition-all hover:bg-white dark:hover:bg-mono-900 shrink-0 whitespace-nowrap"
                 >
                   <Globe className="w-4 h-4" />
                   <span>Jelajah Profil & Komunitas</span>
@@ -290,8 +220,8 @@ export default function LandingPage() {
           <div className="w-full lg:w-1/2 h-[420px] sm:h-[500px] relative mt-4 lg:mt-0">
             <Reveal delay={150} className="w-full h-full">
               <div className="w-full h-full p-2 bg-white/40 dark:bg-mono-900/40 backdrop-blur-xl border border-mono-200 dark:border-mono-800 rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col relative z-20">
-                {/* Safari-like Window Header */}
-                <div className="h-10 px-4 flex items-center justify-between border-b border-mono-200 dark:border-mono-800">
+                {/* Window Header */}
+                <div className="h-10 px-4 flex items-center justify-between border-b border-mono-200 dark:border-mono-800 shrink-0">
                   <div className="flex gap-1.5">
                     <div className="w-3 h-3 rounded-full bg-mono-300 dark:bg-mono-700" />
                     <div className="w-3 h-3 rounded-full bg-mono-300 dark:bg-mono-700" />
@@ -300,7 +230,7 @@ export default function LandingPage() {
                   <div className="font-mono text-[10px] text-mono-500 font-medium truncate px-4">
                     Preview Peta Digital Jejak.log
                   </div>
-                  <Link href="/app/explore" className="font-mono text-[10px] text-mono-400 hover:text-mono-900 dark:hover:text-mono-100 flex items-center gap-1">
+                  <Link href="/app/explore" className="font-mono text-[10px] text-mono-400 hover:text-mono-900 dark:hover:text-mono-100 flex items-center gap-1 shrink-0 whitespace-nowrap">
                     <span>Eksplorasi</span>
                     <ExternalLink className="w-3 h-3" />
                   </Link>
@@ -309,7 +239,7 @@ export default function LandingPage() {
                 <div className="flex-1 relative rounded-b-[2.1rem] overflow-hidden bg-mono-100 dark:bg-mono-950">
                   {isMapLoaded && (
                     <div className="absolute inset-0 pointer-events-auto">
-                      <InteractiveMap places={places} onSelectPlace={() => {}} />
+                      <InteractiveMap places={places} />
                     </div>
                   )}
                 </div>
@@ -318,82 +248,65 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* Public Explorer Profiles Spoiler Showcase Gallery */}
-        <section className="relative mx-auto w-full max-w-6xl px-6 py-16 md:px-8 border-t border-mono-200 dark:border-mono-800/60">
-          <div className="flex flex-col md:flex-row items-start md:items-end justify-between mb-10 gap-4">
-            <div>
-              <span className="font-mono text-xs text-mono-400 uppercase tracking-wider block mb-1">
-                Komunitas Penjelajah
-              </span>
-              <h2 className="font-serif text-3xl md:text-4xl tracking-tight">
-                Intip Profil & Galeri Penjelajah
-              </h2>
+        {/* Real Public Profiles Section (ONLY rendered if profiles exist in Database) */}
+        {publicProfiles.length > 0 && (
+          <section className="relative mx-auto w-full max-w-6xl px-6 py-16 md:px-8 border-t border-mono-200 dark:border-mono-800/60">
+            <div className="flex flex-col md:flex-row items-start md:items-end justify-between mb-10 gap-4">
+              <div>
+                <span className="font-mono text-xs text-mono-400 uppercase tracking-wider block mb-1">
+                  Komunitas Penjelajah
+                </span>
+                <h2 className="font-serif text-3xl md:text-4xl tracking-tight">
+                  Profil Penjelajah Publik
+                </h2>
+              </div>
+              <Link
+                href="/app/explore"
+                className="px-4 py-2.5 bg-mono-100 dark:bg-mono-800 hover:bg-mono-200 dark:hover:bg-mono-700 text-mono-800 dark:text-mono-200 font-mono text-xs font-bold rounded-xl flex items-center gap-2 transition shrink-0 whitespace-nowrap min-h-[40px]"
+              >
+                <span>Lihat Semua Komunitas</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
             </div>
-            <Link
-              href="/app/explore"
-              className="px-4 py-2 bg-mono-100 dark:bg-mono-800 hover:bg-mono-200 dark:hover:bg-mono-700 text-mono-800 dark:text-mono-200 font-mono text-xs font-bold rounded-xl flex items-center gap-2 transition"
-            >
-              <span>Lihat Semua Komunitas</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </Link>
-          </div>
 
-          {/* Cards Showcase Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {SHOWCASE_PUBLIC_PROFILES.map((profile, i) => (
-              <Reveal key={profile.username} delay={i * 100}>
-                <div className="group bg-white dark:bg-mono-900 border border-mono-200 dark:border-mono-800 rounded-3xl overflow-hidden shadow-sm hover:shadow-xl hover:border-mono-400 transition-all duration-300 flex flex-col h-full">
-                  {/* Photo Preview Cover */}
-                  <div className="h-44 relative overflow-hidden bg-mono-100 dark:bg-mono-800">
-                    <img
-                      src={profile.latestImage}
-                      alt={profile.displayName}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                    />
-                    <div className="absolute top-3 right-3 px-2.5 py-1 rounded-full bg-mono-950/80 backdrop-blur-md text-white font-mono text-[10px] font-bold">
-                      {profile.placesCount} Singgahan
-                    </div>
-                  </div>
-
-                  {/* Profile Info Body */}
-                  <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
-                    <div className="space-y-2">
+            {/* Cards Showcase Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {publicProfiles.map((userRow, i) => (
+                <Reveal key={userRow.id || i} delay={i * 100}>
+                  <div className="group bg-white dark:bg-mono-900 border border-mono-200 dark:border-mono-800 rounded-3xl p-6 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col justify-between h-full space-y-4">
+                    <div className="space-y-3">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-mono-900 dark:bg-mono-100 text-mono-100 dark:text-mono-900 flex items-center justify-center font-bold text-sm">
-                          {profile.avatar}
+                        <div className="w-12 h-12 rounded-full bg-mono-900 dark:bg-mono-100 text-mono-100 dark:text-mono-900 flex items-center justify-center font-bold text-base shadow shrink-0">
+                          {userRow.display_name ? userRow.display_name.charAt(0).toUpperCase() : <User className="w-5 h-5" />}
                         </div>
-                        <div>
-                          <h3 className="font-bold text-sm text-mono-900 dark:text-mono-100 group-hover:text-blue-500 transition-colors">
-                            {profile.displayName}
+                        <div className="truncate">
+                          <h3 className="font-bold text-base text-mono-900 dark:text-mono-100 truncate">
+                            {userRow.display_name || userRow.username}
                           </h3>
-                          <p className="font-mono text-xs text-mono-400">@{profile.username}</p>
+                          <p className="font-mono text-xs text-mono-400 truncate">@{userRow.username}</p>
                         </div>
                       </div>
-                      <p className="text-xs text-mono-600 dark:text-mono-400 leading-relaxed">
-                        {profile.bio}
+
+                      <p className="text-xs text-mono-600 dark:text-mono-400 leading-relaxed line-clamp-2">
+                        {userRow.bio || "Penjelajah Jejak.log | Arsip tempat dan peta eksplorasi personal."}
                       </p>
                     </div>
 
-                    <div className="pt-3 border-t border-mono-100 dark:border-mono-800 flex items-center justify-between">
-                      <span className="font-mono text-[11px] text-mono-400 flex items-center gap-1">
-                        <MapPin className="w-3 h-3" />
-                        {profile.topLocation}
-                      </span>
-
+                    <div className="pt-3 border-t border-mono-100 dark:border-mono-800 flex justify-end">
                       <Link
-                        href={`/profile/${profile.username}`}
-                        className="px-3 py-1.5 bg-mono-900 dark:bg-mono-100 text-mono-100 dark:text-mono-900 font-mono text-xs font-bold rounded-xl flex items-center gap-1 group-hover:bg-blue-600 group-hover:text-white transition"
+                        href={`/profile/${userRow.username}`}
+                        className="px-4 py-2 bg-mono-900 dark:bg-mono-100 text-mono-100 dark:text-mono-900 font-mono text-xs font-bold rounded-xl flex items-center gap-1.5 hover:bg-blue-600 group-hover:text-white transition shrink-0 whitespace-nowrap min-h-[38px]"
                       >
-                        <span>Lihat Profil</span>
-                        <ArrowRight className="w-3 h-3" />
+                        <span>Buka Profil</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
                       </Link>
                     </div>
                   </div>
-                </div>
-              </Reveal>
-            ))}
-          </div>
-        </section>
+                </Reveal>
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* Features Grid */}
         <section className="relative mx-auto w-full max-w-6xl px-6 py-16 md:px-8 border-t border-mono-200 dark:border-mono-800/60">
@@ -408,7 +321,7 @@ export default function LandingPage() {
             {features.map((f, i) => (
               <Reveal key={f.title} delay={i * 100}>
                 <div className="h-full rounded-[2rem] border border-mono-200 dark:border-mono-800 bg-white dark:bg-mono-900 p-7 shadow-sm hover:shadow-xl transition-all duration-300">
-                  <div className="mb-5 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-mono-100 dark:bg-mono-800 text-mono-900 dark:text-mono-100">
+                  <div className="mb-5 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-mono-100 dark:bg-mono-800 text-mono-900 dark:text-mono-100 shrink-0">
                     <f.icon size={22} />
                   </div>
                   <h3 className="font-bold text-lg mb-2 tracking-tight">{f.title}</h3>
@@ -431,7 +344,7 @@ export default function LandingPage() {
               </p>
               <Link
                 href={hasActiveSession ? "/app" : "/register"}
-                className="relative z-10 inline-flex h-13 items-center justify-center gap-3 rounded-2xl bg-white dark:bg-mono-900 px-8 text-sm font-bold text-mono-900 dark:text-mono-100 transition-all hover:scale-105 shadow-xl"
+                className="relative z-10 inline-flex h-13 min-h-[48px] items-center justify-center gap-3 rounded-2xl bg-white dark:bg-mono-900 px-8 text-sm font-bold text-mono-900 dark:text-mono-100 transition-all hover:scale-105 shadow-xl shrink-0 whitespace-nowrap"
               >
                 <span>Buka Dashboard Peta</span>
                 <ArrowRight className="w-4 h-4" />
@@ -443,7 +356,7 @@ export default function LandingPage() {
 
       <footer className="border-t border-mono-200 dark:border-mono-800/60 bg-white dark:bg-mono-900 py-8">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-6 md:flex-row md:px-8">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <Compass className="w-4 h-4" />
             <span className="font-mono font-bold text-xs">Jejak.log</span>
           </div>

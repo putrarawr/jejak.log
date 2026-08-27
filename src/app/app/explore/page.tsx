@@ -123,17 +123,17 @@ export default function ExploreCommunityPage() {
         </div>
 
         {/* View Switcher Controls (Grid | Peta | Reels Feed) */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-2 shrink-0">
             <span className="font-mono text-xs font-bold uppercase tracking-wider text-mono-400">
               {filteredPlaces.length} Tempat Ditemukan
             </span>
           </div>
 
-          <div className="flex items-center gap-1 bg-mono-200/60 dark:bg-mono-800/60 p-1 rounded-2xl border border-mono-300 dark:border-mono-700">
+          <div className="flex items-center gap-1 bg-mono-200/60 dark:bg-mono-800/60 p-1 rounded-2xl border border-mono-300 dark:border-mono-700 overflow-x-auto max-w-full shrink-0">
             <button
               onClick={() => setViewMode("grid")}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl font-mono text-xs font-semibold transition ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-mono text-xs font-semibold shrink-0 whitespace-nowrap min-h-[36px] transition ${
                 viewMode === "grid"
                   ? "bg-white dark:bg-mono-900 text-mono-900 dark:text-mono-100 shadow font-bold"
                   : "text-mono-500 dark:text-mono-400 hover:text-mono-900"
@@ -145,7 +145,7 @@ export default function ExploreCommunityPage() {
 
             <button
               onClick={() => setViewMode("map")}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl font-mono text-xs font-semibold transition ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-mono text-xs font-semibold shrink-0 whitespace-nowrap min-h-[36px] transition ${
                 viewMode === "map"
                   ? "bg-white dark:bg-mono-900 text-mono-900 dark:text-mono-100 shadow font-bold"
                   : "text-mono-500 dark:text-mono-400 hover:text-mono-900"
@@ -157,7 +157,7 @@ export default function ExploreCommunityPage() {
 
             <button
               onClick={() => setViewMode("reels")}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl font-mono text-xs font-semibold transition ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-mono text-xs font-semibold shrink-0 whitespace-nowrap min-h-[36px] transition ${
                 viewMode === "reels"
                   ? "bg-white dark:bg-mono-900 text-mono-900 dark:text-mono-100 shadow font-bold"
                   : "text-mono-500 dark:text-mono-400 hover:text-mono-900"
