@@ -8,6 +8,8 @@ import { Compass, Mail, Lock, User, AtSign, ArrowRight, CheckCircle2, RefreshCw 
 import ThemeToggle from "@/components/theme-toggle";
 import { toast } from "sonner";
 
+import CaptchaWidget from "@/components/auth/CaptchaWidget";
+
 export default function RegisterPage() {
   const router = useRouter();
   const { registerWithEmail, resendVerificationEmail } = useAuth();
@@ -18,6 +20,7 @@ export default function RegisterPage() {
   const [displayName, setDisplayName] = useState("");
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const [isCaptchaVerified, setIsCaptchaVerified] = useState(false);
 
   const [isVerificationStep, setIsVerificationStep] = useState(false);
   const [registeredEmail, setRegisteredEmail] = useState("");
@@ -196,9 +199,12 @@ export default function RegisterPage() {
                   </div>
                 </div>
 
+                {/* CAPTCHA Security Protection */}
+                <CaptchaWidget onVerify={setIsCaptchaVerified} />
+
                 <button
                   type="submit"
-                  disabled={loading}
+                  disabled={loading || !isCaptchaVerified}
                   className="w-full py-2.5 mt-2 bg-mono-900 hover:bg-mono-800 dark:bg-mono-100 dark:hover:bg-mono-200 text-mono-100 dark:text-mono-900 font-mono text-sm font-bold rounded-xl transition shadow disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   {loading ? (

@@ -8,6 +8,8 @@ import { Compass, Mail, Lock, LogIn, ArrowRight, ShieldCheck, RefreshCw } from "
 import ThemeToggle from "@/components/theme-toggle";
 import { toast } from "sonner";
 
+import CaptchaWidget from "@/components/auth/CaptchaWidget";
+
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -19,6 +21,7 @@ function LoginForm() {
   const [errorMsg, setErrorMsg] = useState("");
   const [isResending, setIsResending] = useState(false);
   const [showResendButton, setShowResendButton] = useState(false);
+  const [isCaptchaVerified, setIsCaptchaVerified] = useState(false);
 
   useEffect(() => {
     const isVerified = searchParams.get("verified");
@@ -139,9 +142,12 @@ function LoginForm() {
               </div>
             </div>
 
+            {/* CAPTCHA Security Protection */}
+            <CaptchaWidget onVerify={setIsCaptchaVerified} />
+
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || !isCaptchaVerified}
               className="w-full py-3 bg-mono-900 hover:bg-mono-800 dark:bg-mono-100 dark:hover:bg-mono-200 text-mono-100 dark:text-mono-900 font-mono text-sm font-bold rounded-xl transition shadow disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {loading ? (
