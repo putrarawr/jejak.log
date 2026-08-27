@@ -36,7 +36,6 @@ export default function AppShell({
   activeTab = "map",
   onTabChange,
   onOpenAddModal,
-  totalPlacesCount = 0,
   hideBottomNav = false,
   hideFloatingAdd = false,
 }: AppShellProps) {
@@ -65,7 +64,7 @@ export default function AppShell({
         const saved = localStorage.getItem(key) || "[]";
         dataToExport = JSON.parse(saved);
       }
-      
+
       const blob = new Blob([JSON.stringify(dataToExport, null, 2)], { type: "application/json" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -90,7 +89,7 @@ export default function AppShell({
         const saved = localStorage.getItem("jejaklog_places_guest") || "[]";
         dataToExport = JSON.parse(saved);
       }
-      
+
       const mapped = dataToExport.map((p) => ({
         id: p.id,
         name: p.name,
@@ -172,7 +171,7 @@ export default function AppShell({
               notes: p.notes,
               visited_at: p.visited_at || p.visitedAt || new Date().toISOString(),
               is_public: p.is_public !== undefined ? p.is_public : (p.isPublic || false),
-              media_json: p.media_json || p.media || []
+              media_json: p.media_json || p.media || [],
             }));
 
             const { error } = await supabase.from("places").upsert(mappedData);
@@ -184,7 +183,7 @@ export default function AppShell({
             const key = "jejaklog_places_guest";
             localStorage.setItem(key, JSON.stringify(parsed));
           }
-          
+
           toast.success("Cadangan data berhasil dipulihkan!");
           setTimeout(() => window.location.reload(), 1000);
         } else {
@@ -202,7 +201,7 @@ export default function AppShell({
       {/* Top Header */}
       <header className="sticky top-0 z-40 bg-white/80 dark:bg-mono-900/80 backdrop-blur-md border-b border-mono-200 dark:border-mono-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
-          {/* Logo & Total Count Badge */}
+          {/* Logo */}
           <div className="flex items-center gap-3 shrink-0">
             <Link href="/" className="flex items-center gap-2 font-mono font-bold text-base tracking-tight shrink-0">
               <div className="w-7 h-7 rounded-lg bg-mono-900 dark:bg-mono-100 text-mono-100 dark:text-mono-900 flex items-center justify-center shrink-0">
@@ -210,13 +209,8 @@ export default function AppShell({
               </div>
               <span className="hidden sm:inline">Jejak.log</span>
             </Link>
-            {isAppMainPage && (
-              <div className="px-2.5 py-0.5 rounded-full bg-mono-200/60 dark:bg-mono-800/60 font-mono text-xs text-mono-600 dark:text-mono-400 shrink-0 whitespace-nowrap">
-                {totalPlacesCount} singgahan
-              </div>
-            )}
             {isGuestMode && (
-              <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/30 text-amber-600 dark:text-amber-400 text-xs font-mono shrink-0 whitespace-nowrap">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/30 text-amber-600 dark:text-amber-400 text-xs font-mono shrink-0 whitespace-nowrap">
                 <ShieldAlert className="w-3 h-3" /> Mode Demo
               </span>
             )}
@@ -376,12 +370,12 @@ export default function AppShell({
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto p-3 sm:p-6 flex flex-col">{children}</main>
 
-      {/* Floating Action Button & Mobile Bottom Nav ONLY on /app main page */}
+      {/* Desktop Floating Action Button (+ Tambah Singgahan at bottom-right) */}
       {isAppMainPage && !hideFloatingAdd && onOpenAddModal && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50">
+        <div className="hidden md:flex fixed bottom-8 right-8 z-50">
           <button
             onClick={onOpenAddModal}
-            className="px-5 py-3 rounded-full bg-mono-900 text-mono-100 dark:bg-mono-100 dark:text-mono-900 font-mono text-xs font-bold shadow-2xl hover:scale-105 active:scale-95 transition-all duration-200 flex items-center gap-2 border border-mono-700 dark:border-mono-300 backdrop-blur-md shrink-0 whitespace-nowrap min-h-[44px]"
+            className="px-6 py-3.5 rounded-full bg-mono-900 text-mono-100 dark:bg-mono-100 dark:text-mono-900 font-mono text-xs font-bold shadow-2xl hover:scale-105 active:scale-95 transition-all duration-200 flex items-center gap-2 border border-mono-700 dark:border-mono-300 backdrop-blur-md shrink-0 whitespace-nowrap min-h-[46px]"
           >
             <PlusCircle className="w-4.5 h-4.5" />
             <span>Tambah Singgahan</span>
@@ -389,44 +383,53 @@ export default function AppShell({
         </div>
       )}
 
+      {/* Mobile Bottom Navigation Bar with Integrated elevated (+) button */}
       {isAppMainPage && !hideBottomNav && onTabChange && (
-        <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/90 dark:bg-mono-900/90 backdrop-blur-lg border-t border-mono-200 dark:border-mono-800 px-6 py-2 flex items-center justify-between shadow-2xl">
+        <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-mono-900/95 backdrop-blur-lg border-t border-mono-200 dark:border-mono-800 px-4 py-2 flex items-center justify-around shadow-2xl">
           <button
             onClick={() => onTabChange("map")}
             className={`flex flex-col items-center gap-0.5 p-1 transition shrink-0 ${
               activeTab === "map"
-                ? "text-mono-900 dark:text-mono-100 font-semibold"
+                ? "text-mono-900 dark:text-mono-100 font-bold"
                 : "text-mono-400 hover:text-mono-700 dark:hover:text-mono-300"
             }`}
           >
-            <MapIcon className="w-4 h-4" />
-            <span className="text-[9px] font-mono">Peta</span>
+            <MapIcon className="w-5 h-5" />
+            <span className="text-[10px] font-mono">Peta</span>
           </button>
 
           <button
             onClick={() => onTabChange("grid")}
             className={`flex flex-col items-center gap-0.5 p-1 transition shrink-0 ${
               activeTab === "grid"
-                ? "text-mono-900 dark:text-mono-100 font-semibold"
+                ? "text-mono-900 dark:text-mono-100 font-bold"
                 : "text-mono-400 hover:text-mono-700 dark:hover:text-mono-300"
             }`}
           >
-            <Grid className="w-4 h-4" />
-            <span className="text-[9px] font-mono">Grid</span>
+            <Grid className="w-5 h-5" />
+            <span className="text-[10px] font-mono">Grid</span>
           </button>
 
-          <div className="w-24 shrink-0" /> {/* Spacer for Floating Center Button */}
+          {onOpenAddModal && (
+            <button
+              onClick={onOpenAddModal}
+              className="w-12 h-12 rounded-full bg-mono-900 dark:bg-mono-100 text-mono-100 dark:text-mono-900 flex items-center justify-center shadow-xl -mt-5 border-4 border-mono-50 dark:border-mono-950 shrink-0 active:scale-95 transition-transform"
+              title="Tambah Singgahan"
+            >
+              <PlusCircle className="w-6 h-6" />
+            </button>
+          )}
 
           <button
             onClick={() => onTabChange("timeline")}
             className={`flex flex-col items-center gap-0.5 p-1 transition shrink-0 ${
               activeTab === "timeline"
-                ? "text-mono-900 dark:text-mono-100 font-semibold"
+                ? "text-mono-900 dark:text-mono-100 font-bold"
                 : "text-mono-400 hover:text-mono-700 dark:hover:text-mono-300"
             }`}
           >
-            <Compass className="w-4 h-4" />
-            <span className="text-[9px] font-mono">Timeline</span>
+            <Compass className="w-5 h-5" />
+            <span className="text-[10px] font-mono">Timeline</span>
           </button>
         </nav>
       )}

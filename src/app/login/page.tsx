@@ -4,38 +4,33 @@ import React, { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
-import { Compass, Mail, Lock, LogIn, ArrowRight, ShieldCheck } from "lucide-react";
+import { Compass, Mail, Lock, LogIn, ArrowRight, ShieldCheck, RefreshCw } from "lucide-react";
 import ThemeToggle from "@/components/theme-toggle";
-import RegisterSuccessModal from "@/components/auth/RegisterSuccessModal";
+import { toast } from "sonner";
 
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { loginWithEmail, loginWithGoogle, loginAsGuest } = useAuth();
+  const { loginWithEmail, loginAsGuest, resendVerificationEmail } = useAuth();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
-  const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
-  const [registeredEmail, setRegisteredEmail] = useState("");
+  const [isResending, setIsResending] = useState(false);
+  const [showResendButton, setShowResendButton] = useState(false);
 
   useEffect(() => {
-    const isRegistered = searchParams.get("registered");
-    const registeredEmailParam = searchParams.get("email");
-
-    if (isRegistered === "true") {
-      setIsSuccessModalOpen(true);
-      if (registeredEmailParam) {
-        setEmail(registeredEmailParam);
-        setRegisteredEmail(registeredEmailParam);
-      }
+    const isVerified = searchParams.get("verified");
+    if (isVerified === "true") {
+      toast.success("Email berhasil diverifikasi! Silakan masuk ke akun Anda.");
     }
   }, [searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg("");
+    setShowResendButton(false);
     setLoading(true);
 
     const res = await loginWithEmail(email, password);
@@ -43,8 +38,24 @@ function LoginForm() {
 
     if (res.error) {
       setErrorMsg(res.error);
+      if (res.error.toLowerCase().includes("verifikasi") || res.error.toLowerCase().includes("dikonfirmasi")) {
+        setShowResendButton(true);
+      }
     } else {
       router.push("/app");
+    }
+  };
+
+  const handleResendVerification = async () => {
+    if (!email || isResending) return;
+    setIsResending(true);
+    const res = await resendVerificationEmail(email);
+    setIsResending(false);
+
+    if (res.error) {
+      toast.error(res.error);
+    } else {
+      toast.success("Email verifikasi telah dikirim ulang.");
     }
   };
 
@@ -77,8 +88,19 @@ function LoginForm() {
           </div>
 
           {errorMsg && (
-            <div className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-600 dark:text-red-400 text-xs font-mono">
-              {errorMsg}
+            <div className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-600 dark:text-red-400 text-xs font-mono space-y-2">
+              <p>{errorMsg}</p>
+              {showResendButton && (
+                <button
+                  type="button"
+                  onClick={handleResendVerification}
+                  disabled={isResending}
+                  className="px-3 py-1 bg-red-600 text-white rounded-lg font-mono text-[10px] uppercase font-bold flex items-center gap-1 hover:bg-red-700 transition"
+                >
+                  <RefreshCw className={`w-3 h-3 ${isResending ? "animate-spin" : ""}`} />
+                  <span>Kirim Ulang Email Verifikasi</span>
+                </button>
+              )}
             </div>
           )}
 
@@ -120,72 +142,63 @@ function LoginForm() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 px-4 bg-mono-900 hover:bg-mono-800 dark:bg-mono-100 dark:hover:bg-mono-200 text-mono-100 dark:text-mono-900 font-medium rounded-xl text-sm transition flex items-center justify-center gap-2 shadow-md disabled:opacity-50"
+              className="w-full py-3 bg-mono-900 hover:bg-mono-800 dark:bg-mono-100 dark:hover:bg-mono-200 text-mono-100 dark:text-mono-900 font-mono text-sm font-bold rounded-xl transition shadow disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {loading ? (
-                <span>Memproses...</span>
+                "Memverifikasi..."
               ) : (
                 <>
-                  <LogIn className="w-4 h-4" />
                   <span>Masuk Akun</span>
+                  <LogIn className="w-4 h-4" />
                 </>
               )}
             </button>
           </form>
 
           {/* Divider */}
-          <div className="relative my-6 text-center">
+          <div className="relative my-6">
             <div className="absolute inset-0 flex items-center">
               <div className="w-full border-t border-mono-200 dark:border-mono-800" />
             </div>
-            <span className="relative px-3 bg-white dark:bg-mono-900 text-xs text-mono-400 uppercase tracking-widest font-mono">
-              atau
-            </span>
+            <div className="relative flex justify-center text-xs font-mono uppercase">
+              <span className="bg-white dark:bg-mono-900 px-3 text-mono-400">Atau</span>
+            </div>
           </div>
 
-          {/* Alternative Logins */}
-          <div className="space-y-2.5">
-            {/* Guest Demo Login Button */}
-            <button
-              type="button"
-              onClick={handleGuestLogin}
-              className="w-full py-2.5 px-4 bg-mono-900/5 dark:bg-mono-100/5 hover:bg-mono-900/10 dark:hover:bg-mono-100/10 text-mono-700 dark:text-mono-300 font-medium rounded-xl text-sm transition flex items-center justify-center gap-2 border border-dashed border-mono-300 dark:border-mono-700"
+          {/* Guest Mode Entry */}
+          <button
+            type="button"
+            onClick={handleGuestLogin}
+            className="w-full py-2.5 bg-mono-100 dark:bg-mono-800 hover:bg-mono-200 dark:hover:bg-mono-700 text-mono-800 dark:text-mono-200 font-mono text-xs font-semibold rounded-xl flex items-center justify-center gap-2 transition"
+          >
+            <ShieldCheck className="w-4 h-4 text-amber-500" />
+            <span>Coba Dalam Mode Demo (Tanpa Login)</span>
+          </button>
+
+          <div className="mt-6 text-center text-xs text-mono-500 dark:text-mono-400">
+            Belum memiliki akun?{" "}
+            <Link
+              href="/register"
+              className="font-bold text-mono-900 dark:text-mono-100 hover:underline"
             >
-              <ShieldCheck className="w-4 h-4 text-mono-500" />
-              <span>Masuk Mode Demo (Tanpa Register)</span>
-            </button>
-          </div>
-
-          <div className="text-center mt-6">
-            <p className="text-xs text-mono-500 dark:text-mono-400">
-              Belum punya akun?{" "}
-              <Link href="/register" className="font-semibold text-mono-900 dark:text-mono-100 hover:underline">
-                Daftar Sekarang <ArrowRight className="w-3 h-3 inline" />
-              </Link>
-            </p>
+              Daftar Sekarang
+            </Link>
           </div>
         </div>
       </div>
-
-      {/* Registration Success Popup Modal */}
-      <RegisterSuccessModal
-        isOpen={isSuccessModalOpen}
-        onClose={() => setIsSuccessModalOpen(false)}
-        onContinue={() => setIsSuccessModalOpen(false)}
-        userEmail={registeredEmail}
-      />
-
-      {/* Footer */}
-      <footer className="text-center text-xs text-mono-400 font-mono pb-2">
-        Jejak.log &copy; {new Date().getFullYear()} — Arsip Eksplorasi Monokrom
-      </footer>
     </main>
   );
 }
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center font-mono text-xs">Memuat login...</div>}>
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center font-mono text-xs text-mono-400">
+          Memuat...
+        </div>
+      }
+    >
       <LoginForm />
     </Suspense>
   );

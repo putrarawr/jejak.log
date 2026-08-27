@@ -24,7 +24,7 @@ interface AuthContextType {
     pass: string,
     username: string,
     displayName: string
-  ) => Promise<{ error?: string }>;
+  ) => Promise<{ error?: string; requiresVerification?: boolean; email?: string }>;
   loginWithGoogle: () => Promise<{ error?: string }>;
   resendVerificationEmail: (email: string) => Promise<{ error?: string }>;
   loginAsGuest: () => void;
@@ -81,25 +81,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     let subscription: any = null;
     try {
-      const { data } = supabase.auth.onAuthStateChange(
-        (_event, session) => {
-          if (session?.user) {
-            setSession(session);
-            setUser({
-              id: session.user.id,
-              email: session.user.email || "",
-              username: session.user.user_metadata?.username || session.user.email?.split("@")[0] || "explorer",
-              displayName: session.user.user_metadata?.display_name || "Petualang Jejak",
-              avatarUrl: session.user.user_metadata?.avatar_url,
-            });
-            setIsGuestMode(false);
-          } else if (!localStorage.getItem("jejaklog_guest_user")) {
-            setSession(null);
-            setUser(null);
-          }
-          setLoading(false);
+      const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+        if (session?.user) {
+          setSession(session);
+          setUser({
+            id: session.user.id,
+            email: session.user.email || "",
+            username: session.user.user_metadata?.username || session.user.email?.split("@")[0] || "explorer",
+            displayName: session.user.user_metadata?.display_name || "Petualang Jejak",
+            avatarUrl: session.user.user_metadata?.avatar_url,
+          });
+          setIsGuestMode(false);
+        } else if (!localStorage.getItem("jejaklog_guest_user")) {
+          setSession(null);
+          setUser(null);
         }
-      );
+        setLoading(false);
+      });
       subscription = data?.subscription;
     } catch (e) {
       console.warn("Failed to subscribe to auth state changes:", e);
@@ -115,38 +113,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (typeof window !== "undefined") {
       return window.location.origin;
     }
-    return process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+    return process.env.NEXT_PUBLIC_SITE_URL || "https://jejak-log.web.id";
   };
 
   const loginWithEmail = async (email: string, pass: string) => {
+    const cleanEmail = email.trim().toLowerCase();
     try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
+      const { error, data } = await supabase.auth.signInWithPassword({
+        email: cleanEmail,
         password: pass,
       });
 
       if (error) {
-        const isRateLimitOrFetchError =
-          error.message.toLowerCase().includes("rate limit") ||
-          error.message.toLowerCase().includes("over_email") ||
-          error.message.toLowerCase().includes("too many requests") ||
-          error.message.toLowerCase().includes("failed to fetch") ||
-          error.message.toLowerCase().includes("fetch") ||
-          error.message.toLowerCase().includes("network");
+        const isEmailNotConfirmed =
+          error.message.toLowerCase().includes("not confirmed") ||
+          error.message.toLowerCase().includes("email_not_confirmed") ||
+          error.message.toLowerCase().includes("unconfirmed");
 
-        if (isRateLimitOrFetchError) {
-          console.warn("Supabase Network / Fetch / Rate Limit issue detected. Falling back to instant local session.");
-          const fallbackUser: CustomUser = {
-            id: `user-${Date.now()}`,
-            email,
-            username: email.split("@")[0],
-            displayName: email.split("@")[0],
-            isGuest: false,
+        if (isEmailNotConfirmed) {
+          return {
+            error: "Email Anda belum diverifikasi. Silakan periksa kotak masuk/spam email Anda untuk melakukan verifikasi akun sebelum masuk.",
           };
-          localStorage.setItem("jejaklog_guest_user", JSON.stringify(fallbackUser));
-          setUser(fallbackUser);
-          setIsGuestMode(false);
-          return {};
+        }
+
+        const isInvalidCredentials =
+          error.message.toLowerCase().includes("invalid login credentials") ||
+          error.message.toLowerCase().includes("invalid_credentials");
+
+        if (isInvalidCredentials) {
+          return { error: "Email atau kata sandi tidak valid. Silakan periksa kembali." };
         }
 
         return { error: error.message };
@@ -154,20 +149,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       localStorage.removeItem("jejaklog_guest_user");
       setIsGuestMode(false);
+
+      if (data?.session?.user) {
+        // Upsert user row to database
+        try {
+          await supabase.from("users").upsert({
+            id: data.session.user.id,
+            email: cleanEmail,
+            username: data.session.user.user_metadata?.username || cleanEmail.split("@")[0],
+            display_name: data.session.user.user_metadata?.display_name || cleanEmail.split("@")[0],
+          });
+        } catch (e) {}
+      }
+
       return {};
     } catch (e: any) {
-      // Fallback on network/fetch errors
-      const fallbackUser: CustomUser = {
-        id: `user-${Date.now()}`,
-        email,
-        username: email.split("@")[0],
-        displayName: email.split("@")[0],
-        isGuest: false,
-      };
-      localStorage.setItem("jejaklog_guest_user", JSON.stringify(fallbackUser));
-      setUser(fallbackUser);
-      setIsGuestMode(false);
-      return {};
+      return { error: e.message || "Gagal masuk. Silakan coba beberapa saat lagi." };
     }
   };
 
@@ -177,94 +174,71 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     username: string,
     displayName: string
   ) => {
+    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedUsername = username.trim().toLowerCase();
+
+    if (pass.length < 8) {
+      return { error: "Kata sandi minimal harus terdiri dari 8 karakter." };
+    }
+
     try {
-      const normalizedEmail = email.trim().toLowerCase();
-
-      // Check local registered emails list for 1 email 1 account validation
-      const existingEmails: string[] = JSON.parse(
-        localStorage.getItem("jejaklog_registered_emails") || "[]"
-      );
-
-      if (existingEmails.includes(normalizedEmail)) {
-        return { error: "Email ini sudah terdaftar! Silakan masuk menggunakan akun Anda." };
-      }
-
-      const redirectUrl = `${getRedirectUrl()}/app`;
-      const { error, data } = await supabase.auth.signUp({
+      const redirectUrl = `${getRedirectUrl()}/login?verified=true`;
+      const { data, error } = await supabase.auth.signUp({
         email: normalizedEmail,
         password: pass,
         options: {
           emailRedirectTo: redirectUrl,
           data: {
-            username,
-            display_name: displayName,
+            username: normalizedUsername,
+            display_name: displayName || normalizedUsername,
           },
         },
       });
 
       if (error) {
-        const isDuplicateEmail =
+        const isDuplicate =
           error.message.toLowerCase().includes("already registered") ||
           error.message.toLowerCase().includes("already in use") ||
-          error.message.toLowerCase().includes("already exists") ||
-          error.message.toLowerCase().includes("user_already_exists");
+          error.message.toLowerCase().includes("already exists");
 
-        if (isDuplicateEmail) {
-          return { error: "Email ini sudah terdaftar! Silakan masuk menggunakan akun Anda." };
-        }
-
-        const isRateLimitOrFetchError =
-          error.message.toLowerCase().includes("rate limit") ||
-          error.message.toLowerCase().includes("over_email") ||
-          error.message.toLowerCase().includes("too many requests") ||
-          error.message.toLowerCase().includes("failed to fetch") ||
-          error.message.toLowerCase().includes("fetch") ||
-          error.message.toLowerCase().includes("network");
-
-        if (isRateLimitOrFetchError) {
-          console.warn("Supabase Network / Fetch / Rate Limit issue detected on register. Creating instant local session.");
-          const fallbackUser: CustomUser = {
-            id: `user-${Date.now()}`,
-            email: normalizedEmail,
-            username: username || normalizedEmail.split("@")[0],
-            displayName: displayName || username || "Petualang Jejak",
-            isGuest: false,
-          };
-          if (!existingEmails.includes(normalizedEmail)) {
-            existingEmails.push(normalizedEmail);
-            localStorage.setItem("jejaklog_registered_emails", JSON.stringify(existingEmails));
-          }
-          localStorage.setItem("jejaklog_guest_user", JSON.stringify(fallbackUser));
-          setUser(fallbackUser);
-          setIsGuestMode(false);
-          return {};
+        if (isDuplicate) {
+          return { error: "Alamat email ini sudah terdaftar. Silakan masuk ke akun Anda." };
         }
 
         return { error: error.message };
       }
 
-      if (data.user) {
-        if (!existingEmails.includes(normalizedEmail)) {
-          existingEmails.push(normalizedEmail);
-          localStorage.setItem("jejaklog_registered_emails", JSON.stringify(existingEmails));
-        }
-        localStorage.removeItem("jejaklog_guest_user");
-        setIsGuestMode(false);
+      // Check if email confirmation is required by Supabase auth
+      if (data?.user && !data.session) {
+        return {
+          requiresVerification: true,
+          email: normalizedEmail,
+        };
+      }
+
+      return {};
+    } catch (e: any) {
+      return { error: e.message || "Gagal mendaftar. Silakan periksa koneksi Anda." };
+    }
+  };
+
+  const resendVerificationEmail = async (email: string) => {
+    const cleanEmail = email.trim().toLowerCase();
+    try {
+      const { error } = await supabase.auth.resend({
+        type: "signup",
+        email: cleanEmail,
+        options: {
+          emailRedirectTo: `${getRedirectUrl()}/login?verified=true`,
+        },
+      });
+
+      if (error) {
+        return { error: error.message };
       }
       return {};
     } catch (e: any) {
-      const normalizedEmail = email.trim().toLowerCase();
-      const fallbackUser: CustomUser = {
-        id: `user-${Date.now()}`,
-        email: normalizedEmail,
-        username: username || normalizedEmail.split("@")[0],
-        displayName: displayName || username || "Petualang Jejak",
-        isGuest: false,
-      };
-      localStorage.setItem("jejaklog_guest_user", JSON.stringify(fallbackUser));
-      setUser(fallbackUser);
-      setIsGuestMode(false);
-      return {};
+      return { error: e.message || "Gagal mengirim email verifikasi." };
     }
   };
 
@@ -280,46 +254,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (error) return { error: error.message };
       return {};
     } catch (e: any) {
-      return { error: e.message || "Gagal login dengan Google" };
-    }
-  };
-
-  const resendVerificationEmail = async (emailToResend: string) => {
-    try {
-      const redirectUrl = `${getRedirectUrl()}/app`;
-      const { error } = await supabase.auth.resend({
-        type: "signup",
-        email: emailToResend,
-        options: {
-          emailRedirectTo: redirectUrl,
-        },
-      });
-      if (error) return { error: error.message };
-      return {};
-    } catch (e: any) {
-      return { error: e.message || "Gagal menguji kirim ulang email verifikasi" };
+      return { error: e.message || "Gagal masuk dengan Google." };
     }
   };
 
   const loginAsGuest = () => {
     const guestUser: CustomUser = {
-      id: "guest-demo-user-id",
-      email: "guest@jejaklog.app",
-      username: "petualang_guest",
-      displayName: "Penjelajah Demo",
+      id: `guest-${Date.now()}`,
+      email: "demo@jejak-log.web.id",
+      username: "petualang_demo",
+      displayName: "Petualang Demo",
       isGuest: true,
     };
+
     localStorage.setItem("jejaklog_guest_user", JSON.stringify(guestUser));
     setUser(guestUser);
+    setSession(null);
     setIsGuestMode(true);
   };
 
   const logout = async () => {
     try {
       await supabase.auth.signOut();
-    } catch (e) {
-      // Ignore
-    }
+    } catch (e) {}
     localStorage.removeItem("jejaklog_guest_user");
     setUser(null);
     setSession(null);
