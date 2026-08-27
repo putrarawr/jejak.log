@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import AppShell from "@/components/layout/AppShell";
 import dynamic from "next/dynamic";
 import AlbumGrid from "@/components/album/AlbumGrid";
@@ -9,72 +9,28 @@ import StatsWidget from "@/components/dashboard/StatsWidget";
 import TimelineView from "@/components/timeline/TimelineView";
 import { useAuth } from "@/context/AuthContext";
 import { createClient } from "@/lib/supabase/client";
+import { useSearchParams } from "next/navigation";
+import { toast } from "sonner";
 
 const InteractiveMap = dynamic(() => import("@/components/map/InteractiveMap"), {
   ssr: false,
 });
 
-const INITIAL_SAMPLE_PLACES = [
-  {
-    id: "sample-1",
-    name: "Kopi Titik Temu",
-    type: "kuliner",
-    latitude: -6.2297,
-    longitude: 106.8074,
-    notes: "Spot kopi yang estetik dengan arsitektur monokrom yang tenang di Jakarta.",
-    visitedAt: "2026-08-20T10:00:00.000Z",
-    isPublic: true,
-    media: [
-      {
-        id: "m-1",
-        storageUrl: "https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=800&q=80",
-        type: "photo",
-      },
-    ],
-  },
-  {
-    id: "sample-2",
-    name: "Bukit Sikunir Dieng",
-    type: "alam",
-    latitude: -7.2185,
-    longitude: 109.9113,
-    notes: "Negeri di atas awan. Momen golden sunrise yang tidak terlupakan.",
-    visitedAt: "2026-08-15T05:30:00.000Z",
-    isPublic: true,
-    media: [
-      {
-        id: "m-2",
-        storageUrl: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800&q=80",
-        type: "photo",
-      },
-    ],
-  },
-  {
-    id: "sample-3",
-    name: "Candi Borobudur",
-    type: "sejarah",
-    latitude: -7.6079,
-    longitude: 110.2038,
-    notes: "Warisan budaya yang megah. Pagi hari yang tenang dan berkabut.",
-    visitedAt: "2026-08-10T07:00:00.000Z",
-    isPublic: false,
-    media: [
-      {
-        id: "m-3",
-        storageUrl: "https://images.unsplash.com/photo-1596402184320-417e7178b2cd?w=800&q=80",
-        type: "photo",
-      },
-    ],
-  },
-];
-
-export default function AppPage() {
+function DashboardContent() {
   const { user, isGuestMode } = useAuth();
+  const searchParams = useSearchParams();
   const supabase = createClient();
   const [activeTab, setActiveTab] = useState<"map" | "grid" | "timeline">("map");
   const [places, setPlaces] = useState<any[]>([]);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const isVerified = searchParams.get("verified");
+    if (isVerified === "true") {
+      toast.success("Selamat! Email Anda berhasil terverifikasi. Akun Anda telah aktif!");
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     async function fetchPlaces() {
@@ -89,10 +45,10 @@ export default function AppPage() {
           try {
             setPlaces(JSON.parse(savedGuestPlaces));
           } catch (e) {
-            setPlaces(INITIAL_SAMPLE_PLACES);
+            setPlaces([]);
           }
         } else {
-          setPlaces(INITIAL_SAMPLE_PLACES);
+          setPlaces([]);
         }
         setIsLoading(false);
         return;
@@ -119,14 +75,13 @@ export default function AppPage() {
             notes: row.notes,
             visitedAt: row.visited_at,
             isPublic: row.is_public,
-            media: row.media_json,
+            media: row.media_json || [],
           }));
           setPlaces(mapped);
+          localStorage.setItem(`jejaklog_places_${user.id}`, JSON.stringify(mapped));
         }
       } catch (err) {
-        console.warn("Exception fetching places:", err);
-        const savedUserPlaces = localStorage.getItem(`jejaklog_places_${user.id}`);
-        setPlaces(savedUserPlaces ? JSON.parse(savedUserPlaces) : []);
+        console.error("Fetch places error:", err);
       } finally {
         setIsLoading(false);
       }
@@ -135,70 +90,37 @@ export default function AppPage() {
     fetchPlaces();
   }, [user, isGuestMode]);
 
-  const handleAddPlace = async (newPlace: any) => {
-    if (!user) return;
+  const handleAddPlace = (newPlace: any) => {
+    setPlaces((prev) => [newPlace, ...prev]);
 
-    if (isGuestMode) {
-      const createdPlace = {
-        id: `guest-place-${Date.now()}`,
-        ...newPlace,
-      };
-      const updated = [createdPlace, ...places];
-      setPlaces(updated);
-      localStorage.setItem("jejaklog_places_guest", JSON.stringify(updated));
-      return;
-    }
-
-    try {
-      const { data, error } = await supabase
-        .from("places")
-        .insert([
-          {
-            user_id: user.id,
-            ...newPlace
-          }
-        ])
-        .select();
-
-      if (error) {
-        console.warn("Cloud save issue, saving locally:", error.message);
-        const createdPlace = {
-          id: `local-place-${Date.now()}`,
-          ...newPlace,
-        };
-        const updated = [createdPlace, ...places];
-        setPlaces(updated);
-        localStorage.setItem(`jejaklog_places_${user.id}`, JSON.stringify(updated));
-      } else if (data && data.length > 0) {
-        const inserted = data[0];
-        const mappedPlace = {
-          id: inserted.id,
-          name: inserted.name,
-          type: inserted.type,
-          latitude: inserted.latitude,
-          longitude: inserted.longitude,
-          notes: inserted.notes,
-          visitedAt: inserted.visited_at,
-          isPublic: inserted.is_public,
-          media: inserted.media_json,
-        };
-        const updated = [mappedPlace, ...places];
-        setPlaces(updated);
-        localStorage.setItem(`jejaklog_places_${user.id}`, JSON.stringify(updated));
+    if (user) {
+      if (isGuestMode) {
+        const saved = JSON.parse(localStorage.getItem("jejaklog_places_guest") || "[]");
+        localStorage.setItem("jejaklog_places_guest", JSON.stringify([newPlace, ...saved]));
+      } else {
+        const saved = JSON.parse(localStorage.getItem(`jejaklog_places_${user.id}`) || "[]");
+        localStorage.setItem(`jejaklog_places_${user.id}`, JSON.stringify([newPlace, ...saved]));
       }
-    } catch (e) {
-      const createdPlace = {
-        id: `local-place-${Date.now()}`,
-        ...newPlace,
-      };
-      const updated = [createdPlace, ...places];
-      setPlaces(updated);
-      localStorage.setItem(`jejaklog_places_${user.id}`, JSON.stringify(updated));
     }
   };
 
-  const handleToggleFavorite = async (id: string) => {
-    setPlaces(places.map((p) => p.id === id ? { ...p, isFavorite: !p.isFavorite } : p));
+  const handleDeletePlace = async (placeId: string) => {
+    setPlaces((prev) => prev.filter((p) => p.id !== placeId));
+
+    if (user) {
+      if (!isGuestMode) {
+        try {
+          await supabase.from("places").delete().eq("id", placeId);
+        } catch (e) {}
+        const saved = JSON.parse(localStorage.getItem(`jejaklog_places_${user.id}`) || "[]");
+        const filtered = saved.filter((p: any) => p.id !== placeId);
+        localStorage.setItem(`jejaklog_places_${user.id}`, JSON.stringify(filtered));
+      } else {
+        const saved = JSON.parse(localStorage.getItem("jejaklog_places_guest") || "[]");
+        const filtered = saved.filter((p: any) => p.id !== placeId);
+        localStorage.setItem("jejaklog_places_guest", JSON.stringify(filtered));
+      }
+    }
   };
 
   return (
@@ -208,49 +130,75 @@ export default function AppPage() {
       onOpenAddModal={() => setIsAddModalOpen(true)}
       totalPlacesCount={places.length}
     >
-      {/* Stats Summary Widget Header */}
-      <StatsWidget places={places} />
+      <div className="flex-1 flex flex-col space-y-6">
+        {/* Ringkasan Dashboard Widget */}
+        <StatsWidget places={places} />
 
-      {activeTab === "map" ? (
-        <div className="w-full flex-1 flex flex-col min-h-[500px]">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="font-bold text-lg tracking-tight">Peta Sebaran Singgahan</h2>
-            <span className="font-mono text-xs text-mono-400">
-              Klik pin pada peta untuk melihat preview detail
-            </span>
-          </div>
-          <div className="flex-1 w-full min-h-[480px]">
-            <InteractiveMap places={places} />
-          </div>
-        </div>
-      ) : activeTab === "grid" ? (
-        <div className="w-full flex-1">
-          <div className="mb-4">
-            <h2 className="font-bold text-lg tracking-tight">Arsip Galeri & Grid Album</h2>
-            <p className="text-xs text-mono-500 dark:text-mono-400">
-              Semua tempat yang pernah Anda kunjungi tersusun rapi dalam bentuk grid.
-            </p>
-          </div>
-          <AlbumGrid places={places} onSelectPlace={() => {}} />
-        </div>
-      ) : (
-        <div className="w-full flex-1">
-          <div className="mb-4">
-            <h2 className="font-bold text-lg tracking-tight">Timeline Kronologis Eksplorasi</h2>
-            <p className="text-xs text-mono-500 dark:text-mono-400">
-              Jurnal perjalanan berdasarkan alur garis waktu kunjungan per bulan & tahun.
-            </p>
-          </div>
-          <TimelineView places={places} />
-        </div>
-      )}
+        {/* Content View Modes */}
+        <div className="flex-1 flex flex-col min-h-0">
+          {activeTab === "map" && (
+            <div className="flex-1 flex flex-col space-y-3 min-h-[500px]">
+              <div className="flex items-center justify-between">
+                <h2 className="font-serif text-lg font-bold">Peta Sebaran Singgahan</h2>
+                <p className="text-xs text-mono-500 font-mono hidden sm:block">
+                  Klik pin pada peta untuk melihat detail
+                </p>
+              </div>
 
-      {/* Add Place Modal */}
+              <div className="flex-1 rounded-3xl overflow-hidden border border-mono-200 dark:border-mono-800 relative shadow-sm min-h-[450px]">
+                {isLoading ? (
+                  <div className="absolute inset-0 flex items-center justify-center bg-mono-100/50 dark:bg-mono-900/50 backdrop-blur-sm">
+                    <span className="font-mono text-xs animate-pulse">Memuat Peta...</span>
+                  </div>
+                ) : (
+                  <InteractiveMap places={places} onDeletePlace={handleDeletePlace} />
+                )}
+              </div>
+            </div>
+          )}
+
+          {activeTab === "grid" && (
+            <div className="flex-1">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="font-serif text-lg font-bold">Album Singgahan</h2>
+                <span className="font-mono text-xs text-mono-500">{places.length} item</span>
+              </div>
+              <AlbumGrid places={places} onDeletePlace={handleDeletePlace} />
+            </div>
+          )}
+
+          {activeTab === "timeline" && (
+            <div className="flex-1">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="font-serif text-lg font-bold">Timeline Perjalanan</h2>
+                <span className="font-mono text-xs text-mono-500">Urutan Kronologis</span>
+              </div>
+              <TimelineView places={places} onDeletePlace={handleDeletePlace} />
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Modal Tambah Singgahan Baru */}
       <AddEntryModal
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
         onAddPlace={handleAddPlace}
       />
     </AppShell>
+  );
+}
+
+export default function AppPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center font-mono text-xs text-mono-400">
+          Memuat Dashboard...
+        </div>
+      }
+    >
+      <DashboardContent />
+    </Suspense>
   );
 }

@@ -237,7 +237,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     try {
-      const redirectUrl = `${getRedirectUrl()}/login?verified=true`;
+      const redirectUrl = `${getRedirectUrl()}/app?verified=true`;
       const { data, error } = await supabase.auth.signUp({
         email: normalizedEmail,
         password: pass,
@@ -274,7 +274,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { error: error.message };
       }
 
-      // Sign out immediately so unverified session is NOT logged in
+      // Sign out immediately so unverified session is NOT logged in prior to clicking confirmation link
       if (data?.session) {
         await supabase.auth.signOut();
       }
@@ -295,7 +295,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         type: "signup",
         email: cleanEmail,
         options: {
-          emailRedirectTo: `${getRedirectUrl()}/login?verified=true`,
+          emailRedirectTo: `${getRedirectUrl()}/app?verified=true`,
         },
       });
 
