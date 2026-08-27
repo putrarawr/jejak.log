@@ -9,6 +9,7 @@ import ThemeToggle from "@/components/theme-toggle";
 import { toast } from "sonner";
 
 import CaptchaWidget from "@/components/auth/CaptchaWidget";
+import VerificationSuccessModal from "@/components/auth/VerificationSuccessModal";
 
 function LoginForm() {
   const router = useRouter();
@@ -22,11 +23,19 @@ function LoginForm() {
   const [isResending, setIsResending] = useState(false);
   const [showResendButton, setShowResendButton] = useState(false);
   const [isCaptchaVerified, setIsCaptchaVerified] = useState(false);
+  const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
 
   useEffect(() => {
-    const isVerified = searchParams.get("verified");
-    if (isVerified === "true") {
-      toast.success("Email berhasil diverifikasi! Silakan masuk ke akun Anda.");
+    const isVerifiedParam = searchParams.get("verified") === "true";
+    const hash = typeof window !== "undefined" ? window.location.hash : "";
+    const isSignupType =
+      searchParams.get("type") === "signup" ||
+      hash.includes("type=signup") ||
+      hash.includes("access_token");
+
+    if (isVerifiedParam || isSignupType) {
+      setIsSuccessModalOpen(true);
+      toast.success("Email Anda berhasil diverifikasi!");
     }
   }, [searchParams]);
 
@@ -192,6 +201,12 @@ function LoginForm() {
           </div>
         </div>
       </div>
+
+      {/* Verification Success Modal */}
+      <VerificationSuccessModal
+        isOpen={isSuccessModalOpen}
+        onClose={() => setIsSuccessModalOpen(false)}
+      />
     </main>
   );
 }

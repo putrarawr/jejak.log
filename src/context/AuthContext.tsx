@@ -267,7 +267,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     try {
-      const redirectUrl = `${getRedirectUrl()}/app?verified=true`;
+      const redirectUrl = `${getRedirectUrl()}/auth/callback?next=/login?verified=true`;
       const { data, error } = await supabase.auth.signUp({
         email: normalizedEmail,
         password: pass,
@@ -337,7 +337,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         type: "signup",
         email: cleanEmail,
         options: {
-          emailRedirectTo: `${getRedirectUrl()}/app?verified=true`,
+          emailRedirectTo: `${getRedirectUrl()}/auth/callback?next=/login?verified=true`,
         },
       });
 
