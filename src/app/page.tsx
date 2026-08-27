@@ -179,11 +179,6 @@ export default function LandingPage() {
           {/* Hero Content */}
           <div className="w-full lg:w-1/2 flex flex-col items-start text-left">
             <Reveal>
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-mono-100 dark:bg-mono-900 border border-mono-200 dark:border-mono-800 font-mono text-[11px] text-mono-600 dark:text-mono-400 mb-6 shrink-0 whitespace-nowrap">
-                <Sparkles className="w-3.5 h-3.5 text-mono-500" />
-                <span>Arsip Personal & Profil Eksplorasi Publik</span>
-              </div>
-
               <h1 className="font-serif text-4xl sm:text-5xl md:text-6xl leading-[1.1] tracking-tight">
                 Dokumentasi Singgahan
                 <br />
@@ -219,30 +214,12 @@ export default function LandingPage() {
           {/* Hero Interactive Map Preview */}
           <div className="w-full lg:w-1/2 h-[420px] sm:h-[500px] relative mt-4 lg:mt-0">
             <Reveal delay={150} className="w-full h-full">
-              <div className="w-full h-full p-2 bg-white/40 dark:bg-mono-900/40 backdrop-blur-xl border border-mono-200 dark:border-mono-800 rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col relative z-20">
-                {/* Window Header */}
-                <div className="h-10 px-4 flex items-center justify-between border-b border-mono-200 dark:border-mono-800 shrink-0">
-                  <div className="flex gap-1.5">
-                    <div className="w-3 h-3 rounded-full bg-mono-300 dark:bg-mono-700" />
-                    <div className="w-3 h-3 rounded-full bg-mono-300 dark:bg-mono-700" />
-                    <div className="w-3 h-3 rounded-full bg-mono-300 dark:bg-mono-700" />
+              <div className="w-full h-full rounded-[2.5rem] border border-mono-200 dark:border-mono-800 bg-mono-100 dark:bg-mono-950 shadow-2xl overflow-hidden relative z-20">
+                {isMapLoaded && (
+                  <div className="absolute inset-0 pointer-events-auto">
+                    <InteractiveMap places={places} />
                   </div>
-                  <div className="font-mono text-[10px] text-mono-500 font-medium truncate px-4">
-                    Preview Peta Digital Jejak.log
-                  </div>
-                  <Link href="/app/explore" className="font-mono text-[10px] text-mono-400 hover:text-mono-900 dark:hover:text-mono-100 flex items-center gap-1 shrink-0 whitespace-nowrap">
-                    <span>Eksplorasi</span>
-                    <ExternalLink className="w-3 h-3" />
-                  </Link>
-                </div>
-                {/* Map Container */}
-                <div className="flex-1 relative rounded-b-[2.1rem] overflow-hidden bg-mono-100 dark:bg-mono-950">
-                  {isMapLoaded && (
-                    <div className="absolute inset-0 pointer-events-auto">
-                      <InteractiveMap places={places} />
-                    </div>
-                  )}
-                </div>
+                )}
               </div>
             </Reveal>
           </div>

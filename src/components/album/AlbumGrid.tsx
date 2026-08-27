@@ -107,7 +107,7 @@ export default function AlbumGrid({ places, onSelectPlace, onToggleFavorite }: A
               <Link
                 key={place.id}
                 href={`/app/album/${place.id}`}
-                onClick={() => onSelectPlace(place)}
+                onClick={() => onSelectPlace?.(place)}
                 className="group relative cursor-pointer bg-mono-100 dark:bg-mono-900 border border-mono-200/50 dark:border-mono-800/50 rounded-[2rem] overflow-hidden shadow-sm hover:shadow-xl hover:shadow-blue-900/10 dark:hover:shadow-blue-900/30 transition-all duration-300 hover:-translate-y-1 flex flex-col aspect-[4/5]"
               >
                 {/* Background Image / Fallback */}
