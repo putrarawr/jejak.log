@@ -125,23 +125,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
 
       if (error) {
-        const isEmailNotConfirmed =
-          error.message.toLowerCase().includes("not confirmed") ||
-          error.message.toLowerCase().includes("email_not_confirmed") ||
-          error.message.toLowerCase().includes("unconfirmed");
-
-        if (isEmailNotConfirmed) {
+        const msg = error.message.toLowerCase();
+        if (msg.includes("not confirmed") || msg.includes("email_not_confirmed") || msg.includes("unconfirmed")) {
           return {
             error: "Email Anda belum diverifikasi. Silakan periksa kotak masuk/spam email Anda untuk melakukan verifikasi akun sebelum masuk.",
           };
         }
 
-        const isInvalidCredentials =
-          error.message.toLowerCase().includes("invalid login credentials") ||
-          error.message.toLowerCase().includes("invalid_credentials");
-
-        if (isInvalidCredentials) {
+        if (msg.includes("invalid login credentials") || msg.includes("invalid_credentials")) {
           return { error: "Email atau kata sandi tidak valid. Silakan periksa kembali." };
+        }
+
+        if (msg.includes("failed to fetch") || msg.includes("fetch") || msg.includes("network")) {
+          return {
+            error: "Gagal terhubung ke server Supabase. Pastikan koneksi internet stabil atau variabel environment NEXT_PUBLIC_SUPABASE_URL & ANON_KEY di Vercel sudah aktif.",
+          };
         }
 
         return { error: error.message };
@@ -196,13 +194,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
 
       if (error) {
-        const isDuplicate =
-          error.message.toLowerCase().includes("already registered") ||
-          error.message.toLowerCase().includes("already in use") ||
-          error.message.toLowerCase().includes("already exists");
-
-        if (isDuplicate) {
+        const msg = error.message.toLowerCase();
+        if (msg.includes("already registered") || msg.includes("already in use") || msg.includes("already exists")) {
           return { error: "Alamat email ini sudah terdaftar. Silakan masuk ke akun Anda." };
+        }
+
+        if (msg.includes("failed to fetch") || msg.includes("fetch") || msg.includes("network")) {
+          return {
+            error: "Gagal terhubung ke server Supabase. Pastikan koneksi internet Anda aktif dan variabel environment NEXT_PUBLIC_SUPABASE_URL & ANON_KEY sudah terpasang di Vercel.",
+          };
         }
 
         return { error: error.message };
