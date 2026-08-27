@@ -90,16 +90,70 @@ function DashboardContent() {
     fetchPlaces();
   }, [user, isGuestMode]);
 
-  const handleAddPlace = (newPlace: any) => {
-    setPlaces((prev) => [newPlace, ...prev]);
+  const handleAddPlace = async (newPlace: any) => {
+    // Generate a temporary ID for optimistic UI
+    const tempId = "temp-" + Date.now();
+    const optimisticPlace = {
+      ...newPlace,
+      id: tempId,
+      visitedAt: newPlace.visited_at,
+      isPublic: newPlace.is_public,
+      media: newPlace.media_json || [], // Map media_json to media for AlbumGrid
+    };
+
+    setPlaces((prev) => [optimisticPlace, ...prev]);
 
     if (user) {
       if (isGuestMode) {
         const saved = JSON.parse(localStorage.getItem("jejaklog_places_guest") || "[]");
-        localStorage.setItem("jejaklog_places_guest", JSON.stringify([newPlace, ...saved]));
+        localStorage.setItem("jejaklog_places_guest", JSON.stringify([optimisticPlace, ...saved]));
       } else {
-        const saved = JSON.parse(localStorage.getItem(`jejaklog_places_${user.id}`) || "[]");
-        localStorage.setItem(`jejaklog_places_${user.id}`, JSON.stringify([newPlace, ...saved]));
+        try {
+          // Insert to Supabase DB
+          const dbPayload = {
+            user_id: user.id,
+            name: newPlace.name,
+            type: newPlace.type,
+            latitude: newPlace.latitude,
+            longitude: newPlace.longitude,
+            notes: newPlace.notes,
+            visited_at: newPlace.visited_at,
+            is_public: newPlace.is_public,
+            media_json: newPlace.media_json,
+          };
+
+          const { data, error } = await supabase.from("places").insert(dbPayload).select().single();
+
+          if (error) {
+            console.error("Gagal menyimpan ke database:", error);
+            // Revert optimistic UI on error
+            setPlaces((prev) => prev.filter((p) => p.id !== tempId));
+            return;
+          }
+
+          // Replace temp id with real DB data
+          if (data) {
+            const mappedData = {
+              id: data.id,
+              name: data.name,
+              type: data.type,
+              latitude: data.latitude,
+              longitude: data.longitude,
+              notes: data.notes,
+              visitedAt: data.visited_at,
+              isPublic: data.is_public,
+              media: data.media_json || [],
+            };
+
+            setPlaces((prev) => prev.map((p) => (p.id === tempId ? mappedData : p)));
+            
+            const saved = JSON.parse(localStorage.getItem(`jejaklog_places_${user.id}`) || "[]");
+            const updatedStorage = [mappedData, ...saved.filter((p: any) => p.id !== tempId)];
+            localStorage.setItem(`jejaklog_places_${user.id}`, JSON.stringify(updatedStorage));
+          }
+        } catch (e) {
+          console.error(e);
+        }
       }
     }
   };

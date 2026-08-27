@@ -278,13 +278,14 @@ export default function AppShell({
             <ThemeToggle />
 
             {/* User Avatar Menu */}
-            <div className="relative shrink-0">
-              <button
-                onClick={() => setShowUserMenu(!showUserMenu)}
-                className="w-8 h-8 rounded-full bg-mono-200 dark:bg-mono-800 border border-mono-300 dark:border-mono-700 flex items-center justify-center font-mono text-xs font-semibold overflow-hidden hover:opacity-80 transition shrink-0"
-              >
-                {user?.displayName ? user.displayName.charAt(0).toUpperCase() : <User className="w-4 h-4" />}
-              </button>
+            {user ? (
+              <div className="relative shrink-0">
+                <button
+                  onClick={() => setShowUserMenu(!showUserMenu)}
+                  className="w-8 h-8 rounded-full bg-mono-200 dark:bg-mono-800 border border-mono-300 dark:border-mono-700 flex items-center justify-center font-mono text-xs font-semibold overflow-hidden hover:opacity-80 transition shrink-0"
+                >
+                  {user.displayName ? user.displayName.charAt(0).toUpperCase() : <User className="w-4 h-4" />}
+                </button>
 
               {showUserMenu && (
                 <div className="absolute right-0 mt-2 w-60 bg-white dark:bg-mono-900 border border-mono-200 dark:border-mono-800 rounded-2xl shadow-2xl py-2 z-50 animate-in fade-in zoom-in-95 duration-150">
@@ -363,6 +364,14 @@ export default function AppShell({
                 </div>
               )}
             </div>
+            ) : (
+              <Link
+                href="/login"
+                className="px-4 py-2 rounded-xl bg-mono-900 dark:bg-mono-100 text-mono-100 dark:text-mono-900 font-mono text-xs font-bold shadow hover:opacity-90 transition shrink-0 whitespace-nowrap"
+              >
+                Login
+              </Link>
+            )}
           </div>
         </div>
       </header>
