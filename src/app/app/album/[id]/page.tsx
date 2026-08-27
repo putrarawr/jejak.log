@@ -35,66 +35,13 @@ const InteractiveMap = dynamic(() => import("@/components/map/InteractiveMap"), 
   ssr: false,
 });
 
-const INITIAL_SAMPLE_PLACES = [
-  {
-    id: "sample-1",
-    name: "Kopi Titik Temu",
-    type: "kuliner",
-    latitude: -6.2297,
-    longitude: 106.8074,
-    notes: "Spot kopi yang estetik dengan arsitektur monokrom yang tenang di Jakarta.",
-    visitedAt: "2026-08-20T10:00:00.000Z",
-    isPublic: true,
-    media: [
-      {
-        id: "m-1",
-        storageUrl: "https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=800&q=80",
-        type: "photo",
-      },
-    ],
-  },
-  {
-    id: "sample-2",
-    name: "Bukit Sikunir Dieng",
-    type: "alam",
-    latitude: -7.2185,
-    longitude: 109.9113,
-    notes: "Negeri di atas awan. Momen golden sunrise yang tidak terlupakan.",
-    visitedAt: "2026-08-15T05:30:00.000Z",
-    isPublic: true,
-    media: [
-      {
-        id: "m-2",
-        storageUrl: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800&q=80",
-        type: "photo",
-      },
-    ],
-  },
-  {
-    id: "sample-3",
-    name: "Candi Borobudur",
-    type: "sejarah",
-    latitude: -7.6079,
-    longitude: 110.2038,
-    notes: "Warisan budaya yang megah. Pagi hari yang tenang dan berkabut.",
-    visitedAt: "2026-08-10T07:00:00.000Z",
-    isPublic: false,
-    media: [
-      {
-        id: "m-3",
-        storageUrl: "https://images.unsplash.com/photo-1596402184320-417e7178b2cd?w=800&q=80",
-        type: "photo",
-      },
-    ],
-  },
-];
-
 export default function DedicatedAlbumPage() {
   const params = useParams();
   const router = useRouter();
   const albumId = params?.id as string;
 
   const [place, setPlace] = useState<any | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   const [activeMediaIndex, setActiveMediaIndex] = useState(0);
   const [isFullscreenModalOpen, setIsFullscreenModalOpen] = useState(false);
   const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
@@ -104,17 +51,26 @@ export default function DedicatedAlbumPage() {
   const supabase = createClient();
 
   useEffect(() => {
+    let isMounted = true;
+
     async function fetchAlbum() {
-      if (!user) return;
+      if (!albumId) {
+        if (isMounted) setIsLoading(false);
+        return;
+      }
+
+      let foundPlace: any = null;
+
+      // 1. Try Supabase DB query
       try {
         const { data } = await supabase
           .from("places")
           .select("*")
           .eq("id", albumId)
-          .single();
-        
+          .maybeSingle();
+
         if (data) {
-          setPlace({
+          foundPlace = {
             id: data.id,
             name: data.name,
             type: data.type,
@@ -123,49 +79,106 @@ export default function DedicatedAlbumPage() {
             notes: data.notes,
             visitedAt: data.visited_at,
             isPublic: data.is_public,
-            media: data.media_json,
-          });
-        } else {
-          // Check local user storage or initial sample places
-          const localPlacesKey = isGuestMode ? "jejaklog_places_guest" : `jejaklog_places_${user.id}`;
-          const savedPlaces = localStorage.getItem(localPlacesKey);
-          if (savedPlaces) {
-            const parsed = JSON.parse(savedPlaces);
-            const found = parsed.find((p: any) => p.id === albumId);
-            if (found) setPlace(found);
-          } else {
-            const sample = INITIAL_SAMPLE_PLACES.find((p) => p.id === albumId);
-            if (sample) setPlace(sample);
-          }
+            media: data.media_json || [],
+          };
         }
       } catch (e) {
-        const sample = INITIAL_SAMPLE_PLACES.find((p) => p.id === albumId);
-        if (sample) setPlace(sample);
+        console.warn("DB album fetch notice:", e);
+      }
+
+      // 2. Search local storage backups if DB returned empty
+      if (!foundPlace && typeof window !== "undefined") {
+        try {
+          // Check user storage first
+          if (user?.id) {
+            const userSaved = localStorage.getItem(`jejaklog_places_${user.id}`);
+            if (userSaved) {
+              const parsed = JSON.parse(userSaved);
+              if (Array.isArray(parsed)) {
+                foundPlace = parsed.find((p: any) => p.id === albumId);
+              }
+            }
+          }
+
+          // Check guest storage
+          if (!foundPlace) {
+            const guestSaved = localStorage.getItem("jejaklog_places_guest");
+            if (guestSaved) {
+              const parsed = JSON.parse(guestSaved);
+              if (Array.isArray(parsed)) {
+                foundPlace = parsed.find((p: any) => p.id === albumId);
+              }
+            }
+          }
+
+          // Check all remaining localStorage keys
+          if (!foundPlace) {
+            for (let i = 0; i < localStorage.length; i++) {
+              const key = localStorage.key(i);
+              if (key && key.startsWith("jejaklog_places")) {
+                const raw = localStorage.getItem(key);
+                if (raw) {
+                  const parsed = JSON.parse(raw);
+                  if (Array.isArray(parsed)) {
+                    const match = parsed.find((p: any) => p.id === albumId);
+                    if (match) {
+                      foundPlace = match;
+                      break;
+                    }
+                  }
+                }
+              }
+            }
+          }
+        } catch (err) {
+          console.warn("Local storage album search notice:", err);
+        }
+      }
+
+      if (isMounted) {
+        if (foundPlace) {
+          setPlace(foundPlace);
+        }
+        setIsLoading(false);
       }
     }
+
     fetchAlbum();
-  }, [user, albumId, isGuestMode]);
+
+    return () => {
+      isMounted = false;
+    };
+  }, [albumId, user]);
 
   const handleUpdateCurrentPlace = async (updatedPlace: any) => {
     setPlace(updatedPlace);
-    if (!isGuestMode) {
-      await supabase
-        .from("places")
-        .update({
-          name: updatedPlace.name,
-          type: updatedPlace.type,
-          latitude: updatedPlace.latitude,
-          longitude: updatedPlace.longitude,
-          notes: updatedPlace.notes,
-          visited_at: updatedPlace.visitedAt,
-          is_public: updatedPlace.isPublic,
-          media_json: updatedPlace.media,
-        })
-        .eq("id", updatedPlace.id);
+
+    if (user && !isGuestMode) {
+      try {
+        await supabase
+          .from("places")
+          .upsert({
+            id: updatedPlace.id,
+            user_id: user.id,
+            name: updatedPlace.name,
+            type: updatedPlace.type,
+            latitude: updatedPlace.latitude,
+            longitude: updatedPlace.longitude,
+            notes: updatedPlace.notes,
+            visited_at: updatedPlace.visitedAt,
+            is_public: updatedPlace.isPublic,
+            media_json: updatedPlace.media,
+          });
+      } catch (e) {}
+
+      const userKey = `jejaklog_places_${user.id}`;
+      const saved = JSON.parse(localStorage.getItem(userKey) || "[]");
+      const filtered = saved.filter((p: any) => p.id !== updatedPlace.id);
+      localStorage.setItem(userKey, JSON.stringify([updatedPlace, ...filtered]));
     } else {
       const savedPlaces = JSON.parse(localStorage.getItem("jejaklog_places_guest") || "[]");
-      const updatedList = savedPlaces.map((p: any) => (p.id === updatedPlace.id ? updatedPlace : p));
-      localStorage.setItem("jejaklog_places_guest", JSON.stringify(updatedList));
+      const filtered = savedPlaces.filter((p: any) => p.id !== updatedPlace.id);
+      localStorage.setItem("jejaklog_places_guest", JSON.stringify([updatedPlace, ...filtered]));
     }
   };
 
@@ -186,61 +199,81 @@ export default function DedicatedAlbumPage() {
   };
 
   const handleCapturePhotoFromCamera = async (dataUrl: string) => {
-    if (!place || !user) return;
+    if (!place) return;
     setIsUploading(true);
-    
+
     try {
-      const file = dataURLtoFile(dataUrl, `camera-${Date.now()}.jpg`);
-      const fileName = `${user.id}/${Date.now()}-${Math.random().toString(36).substring(7)}.jpg`;
+      let publicUrl = dataUrl;
 
-      const { error: uploadError } = await supabase.storage.from("media").upload(fileName, file);
-      if (uploadError) throw uploadError;
+      if (user && !isGuestMode) {
+        try {
+          const file = dataURLtoFile(dataUrl, `camera-${Date.now()}.jpg`);
+          const fileName = `${user.id}/${Date.now()}-${Math.random().toString(36).substring(7)}.jpg`;
 
-      const { data: { publicUrl } } = supabase.storage.from("media").getPublicUrl(fileName);
+          const { error: uploadError } = await supabase.storage.from("media").upload(fileName, file);
+          if (!uploadError) {
+            const { data: urlData } = supabase.storage.from("media").getPublicUrl(fileName);
+            if (urlData?.publicUrl) publicUrl = urlData.publicUrl;
+          }
+        } catch (e) {}
+      }
 
       const currentMedia = place.media || [];
       const newMediaItem = {
-        id: fileName,
+        id: `m-${Date.now()}`,
         storageUrl: publicUrl,
         type: "photo",
       };
-      
+
       const updatedMedia = [...currentMedia, newMediaItem];
       const updatedPlace = { ...place, media: updatedMedia };
 
       await handleUpdateCurrentPlace(updatedPlace);
       setActiveMediaIndex(updatedMedia.length - 1);
-      
-      setToastMsg("Foto kamera berhasil diunggah ke cloud!");
-    } catch (err) {
-      alert("Gagal mengunggah foto kamera.");
+      toast.success("Foto dari kamera berhasil ditambahkan!");
+    } catch (err: any) {
+      toast.error("Gagal menambahkan foto dari kamera.");
     } finally {
       setIsUploading(false);
-      setTimeout(() => setToastMsg(""), 3500);
     }
   };
 
-  const handleAddMediaFiles = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
-    if (!files || files.length === 0 || !place || !user) return;
+    if (!files || files.length === 0 || !place) return;
 
     setIsUploading(true);
-    const newMediaItems: { id: string; storageUrl: string; type: string }[] = [];
-    
+    const newMediaItems: any[] = [];
+
     try {
-      for (const file of Array.from(files)) {
-        const isVideo = file.type.startsWith("video");
-        const fileExt = file.name.split(".").pop();
-        const fileName = `${user.id}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
-        
-        const { error: uploadError } = await supabase.storage.from("media").upload(fileName, file);
-        if (uploadError) throw uploadError;
-        
-        const { data: { publicUrl } } = supabase.storage.from("media").getPublicUrl(fileName);
-        
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const isVideo = file.type.startsWith("video/");
+        let fileUrl = "";
+
+        if (user && !isGuestMode) {
+          try {
+            const ext = file.name.split(".").pop();
+            const fileName = `${user.id}/${Date.now()}-${i}-${Math.random().toString(36).substring(7)}.${ext}`;
+            const { error: uploadError } = await supabase.storage.from("media").upload(fileName, file);
+            if (!uploadError) {
+              const { data: urlData } = supabase.storage.from("media").getPublicUrl(fileName);
+              if (urlData?.publicUrl) fileUrl = urlData.publicUrl;
+            }
+          } catch (e) {}
+        }
+
+        if (!fileUrl) {
+          fileUrl = await new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = (event) => resolve(event.target?.result as string);
+            reader.readAsDataURL(file);
+          });
+        }
+
         newMediaItems.push({
-          id: fileName,
-          storageUrl: publicUrl,
+          id: `m-${Date.now()}-${i}`,
+          storageUrl: fileUrl,
           type: isVideo ? "video" : "photo",
         });
       }
@@ -251,229 +284,285 @@ export default function DedicatedAlbumPage() {
 
       await handleUpdateCurrentPlace(updatedPlace);
       setActiveMediaIndex(updatedMedia.length - 1);
-      
-      setToastMsg(`${newMediaItems.length} media berhasil diunggah!`);
-    } catch (err) {
-      alert("Gagal mengunggah file media.");
+      toast.success(`${newMediaItems.length} berkas media berhasil diunggah!`);
+    } catch (err: any) {
+      toast.error("Gagal mengunggah media.");
     } finally {
       setIsUploading(false);
-      e.target.value = "";
-      setTimeout(() => setToastMsg(""), 3000);
     }
   };
 
-  const handleDeleteSingleMedia = async (mediaIdToDelete?: string, indexToDelete?: number) => {
+  const handleDeleteMedia = async (mediaId: string) => {
     if (!place) return;
     const currentMedia = place.media || [];
-    if (currentMedia.length <= 1) {
-      alert("Album minimal harus memiliki 1 foto/video.");
-      return;
-    }
-
-    const updatedMedia = currentMedia.filter((m: any, idx: number) => {
-      if (mediaIdToDelete) return m.id !== mediaIdToDelete;
-      return idx !== indexToDelete;
-    });
-
+    const updatedMedia = currentMedia.filter((m: any) => m.id !== mediaId);
     const updatedPlace = { ...place, media: updatedMedia };
+
     await handleUpdateCurrentPlace(updatedPlace);
-    setActiveMediaIndex((prev) => Math.max(0, prev - 1));
-  };
-
-  const handleDeleteEntireAlbum = async () => {
-    if (!place) return;
-    if (confirm(`Apakah Anda yakin ingin menghapus album "${place.name}" dari Cloud?`)) {
-      await supabase.from("places").delete().eq("id", place.id);
-      router.push("/app");
+    if (activeMediaIndex >= updatedMedia.length) {
+      setActiveMediaIndex(Math.max(0, updatedMedia.length - 1));
     }
+    toast.success("Berkas media dihapus");
   };
 
-  if (!place) {
+  const handleDeleteEntirePlace = async () => {
+    if (!place) return;
+    if (!confirm(`Apakah Anda yakin ingin menghapus "${place.name}" secara permanen?`)) return;
+
+    if (user && !isGuestMode) {
+      try {
+        await supabase.from("places").delete().eq("id", place.id);
+      } catch (e) {}
+      const userKey = `jejaklog_places_${user.id}`;
+      const saved = JSON.parse(localStorage.getItem(userKey) || "[]");
+      const filtered = saved.filter((p: any) => p.id !== place.id);
+      localStorage.setItem(userKey, JSON.stringify(filtered));
+    } else {
+      const savedPlaces = JSON.parse(localStorage.getItem("jejaklog_places_guest") || "[]");
+      const filtered = savedPlaces.filter((p: any) => p.id !== place.id);
+      localStorage.setItem("jejaklog_places_guest", JSON.stringify(filtered));
+    }
+
+    toast.success(`Singgahan "${place.name}" berhasil dihapus.`);
+    router.push("/app");
+  };
+
+  if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-mono-50 dark:bg-mono-950 text-mono-900 dark:text-mono-100">
-        <div className="text-center font-mono">
-          <p>Memuat album...</p>
-        </div>
+      <div className="min-h-screen flex flex-col items-center justify-center bg-mono-50 dark:bg-mono-950 text-mono-900 dark:text-mono-100 font-mono text-xs gap-3">
+        <Compass className="w-6 h-6 animate-spin text-mono-400" />
+        <span>Memuat Album...</span>
       </div>
     );
   }
 
-  const mediaList = place.media && place.media.length > 0 ? place.media : [];
-  const currentMediaItem = mediaList[activeMediaIndex] || mediaList[0];
+  if (!place) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-mono-50 dark:bg-mono-950 text-mono-900 dark:text-mono-100 p-6 text-center space-y-4">
+        <div className="w-16 h-16 rounded-full bg-mono-200 dark:bg-mono-800 flex items-center justify-center">
+          <ImageIcon className="w-8 h-8 text-mono-400" />
+        </div>
+        <h1 className="text-xl font-bold font-serif">Album Tidak Ditemukan</h1>
+        <p className="text-xs text-mono-500 max-w-sm">
+          Singgahan ini mungkin telah dihapus atau belum tersinkronisasi.
+        </p>
+        <Link
+          href="/app"
+          className="px-5 py-2.5 bg-mono-900 dark:bg-mono-100 text-mono-100 dark:text-mono-900 font-mono text-xs font-bold rounded-xl flex items-center gap-2 shadow hover:scale-105 transition"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          <span>Kembali ke Dashboard</span>
+        </Link>
+      </div>
+    );
+  }
+
+  const mediaList = place.media || [];
+  const currentMediaItem = mediaList[activeMediaIndex] || null;
 
   return (
-    <div className="min-h-screen bg-mono-50 dark:bg-mono-950 text-mono-900 dark:text-mono-100 flex flex-col pb-16">
-      <header className="sticky top-0 z-40 bg-white/90 dark:bg-mono-900/90 backdrop-blur-md border-b border-mono-200 dark:border-mono-800">
-        <div className="max-w-4xl mx-auto px-4 h-14 flex items-center justify-between">
+    <div className="min-h-screen flex flex-col bg-mono-50 dark:bg-mono-950 text-mono-900 dark:text-mono-100 pb-16">
+      {/* Top Bar */}
+      <header className="sticky top-0 z-40 bg-white/80 dark:bg-mono-900/80 backdrop-blur-md border-b border-mono-200 dark:border-mono-800">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
           <Link
             href="/app"
-            className="flex items-center gap-1.5 text-xs font-mono font-medium text-mono-600 dark:text-mono-400 hover:text-mono-900 dark:hover:text-mono-100"
+            className="flex items-center gap-2 font-mono text-xs font-semibold text-mono-600 dark:text-mono-400 hover:text-mono-900 dark:hover:text-mono-100 transition"
           >
             <ArrowLeft className="w-4 h-4" />
-            <span>Kembali</span>
+            <span>Kembali ke Dashboard</span>
           </Link>
 
-          <div className="text-center truncate px-2">
-            <h1 className="font-bold text-sm tracking-tight truncate">{place.name}</h1>
-            <span className="font-mono text-[10px] text-mono-400 uppercase">{place.type}</span>
-          </div>
-
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-2">
             <button
               onClick={() => setIsEditModalOpen(true)}
-              className="p-2 text-mono-600 dark:text-mono-400 hover:text-mono-900 dark:hover:text-mono-100 hover:bg-mono-100 dark:hover:bg-mono-800 rounded-lg transition flex items-center gap-1 text-xs font-mono"
-              title="Edit Detail Singgahan"
+              className="p-2 text-mono-600 dark:text-mono-400 hover:text-mono-900 dark:hover:text-mono-100 hover:bg-mono-100 dark:hover:bg-mono-800 rounded-xl transition flex items-center gap-1.5 font-mono text-xs"
+              title="Edit Tempat"
             >
               <Edit3 className="w-4 h-4" />
-              <span className="hidden sm:inline">Edit Singgahan</span>
+              <span className="hidden sm:inline">Edit Tempat</span>
             </button>
+
             <button
-              onClick={handleDeleteEntireAlbum}
-              className="p-2 text-red-500 hover:bg-red-500/10 rounded-lg transition"
-              title="Hapus Album"
+              onClick={handleDeleteEntirePlace}
+              className="p-2 text-red-600 dark:text-red-400 hover:bg-red-500/10 rounded-xl transition flex items-center gap-1.5 font-mono text-xs"
+              title="Hapus tempat ini"
             >
               <Trash2 className="w-4 h-4" />
+              <span className="hidden sm:inline">Hapus Tempat</span>
             </button>
+
             <ThemeToggle />
           </div>
         </div>
       </header>
 
-      <main className="flex-1 max-w-4xl w-full mx-auto p-3 sm:p-5 space-y-5">
-        {toastMsg && (
-          <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 font-mono text-xs rounded-xl flex items-center justify-between shadow-md animate-in fade-in duration-200">
-            <span>{toastMsg}</span>
-            <button onClick={() => setToastMsg("")} className="text-mono-400 hover:text-mono-900 ml-2">
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-        )}
-        <div className="flex flex-col items-center justify-center py-2 space-y-2">
-          {isUploading && (
-            <div className="w-full flex items-center justify-center mb-2">
-              <div className="px-3 py-1 bg-blue-500/10 text-blue-500 text-xs font-mono font-medium rounded-full animate-pulse flex items-center gap-2">
-                <div className="w-3 h-3 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin"></div>
-                Mengunggah ke Cloud...
+      {/* Content Container */}
+      <main className="flex-1 max-w-5xl w-full mx-auto p-4 sm:p-6 space-y-6">
+        {/* Title & Metadata Header */}
+        <div className="bg-white dark:bg-mono-900 border border-mono-200 dark:border-mono-800 rounded-3xl p-6 sm:p-8 shadow-sm space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-mono-100 dark:border-mono-800 pb-4">
+            <div className="space-y-1">
+              <span className="px-3 py-1 rounded-full bg-mono-100 dark:bg-mono-800 text-mono-700 dark:text-mono-300 font-mono text-xs font-bold uppercase tracking-wider">
+                {place.type}
+              </span>
+              <h1 className="text-2xl sm:text-3xl font-serif font-bold tracking-tight pt-1">
+                {place.name}
+              </h1>
+            </div>
+
+            <div className="flex items-center gap-3 font-mono text-xs">
+              <div className="flex items-center gap-1.5 text-mono-500">
+                <Calendar className="w-4 h-4" />
+                <span>
+                  {new Date(place.visitedAt).toLocaleDateString("id-ID", {
+                    day: "numeric",
+                    month: "long",
+                    year: "numeric",
+                  })}
+                </span>
+              </div>
+
+              <span className="text-mono-300">•</span>
+
+              <div className="flex items-center gap-1.5 text-mono-500">
+                {place.isPublic ? (
+                  <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
+                    <Globe className="w-3.5 h-3.5" /> Akses Publik
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 text-mono-400">
+                    <Lock className="w-3.5 h-3.5" /> Privat
+                  </span>
+                )}
               </div>
             </div>
-          )}
-          <div className="flex flex-wrap items-center justify-center gap-2.5">
-            <button
-              onClick={() => setIsCameraModalOpen(true)}
-              disabled={isUploading}
-              className="flex items-center gap-2 px-4 py-2.5 bg-mono-900 dark:bg-mono-100 text-mono-100 dark:text-mono-900 font-bold rounded-xl text-xs hover:shadow-lg hover:-translate-y-0.5 transition disabled:opacity-50"
-            >
-              <Camera className="w-5 h-5 stroke-[2.5]" />
-              <span>Kamera Langsung (Jepret Foto)</span>
-            </button>
-
-            <label
-              htmlFor="file-upload"
-              className={`flex items-center gap-2 px-4 py-2.5 bg-mono-100 dark:bg-mono-800 text-mono-900 dark:text-mono-100 font-bold rounded-xl text-xs cursor-pointer hover:bg-mono-200 dark:hover:bg-mono-700 transition ${isUploading ? 'opacity-50 cursor-not-allowed' : ''}`}
-            >
-              <Upload className="w-4 h-4" />
-              Upload Galeri HP
-            </label>
-            <input
-              id="file-upload"
-              type="file"
-              multiple
-              accept="image/*,video/*"
-              className="hidden"
-              disabled={isUploading}
-              onChange={handleAddMediaFiles}
-            />
           </div>
-          <span className="font-mono text-[10px] text-mono-400">
-            Pencet Kamera Langsung untuk jepret foto HP & otomatis masuk ke album ini
-          </span>
-        </div>
 
-        {/* Mobile Portrait Photo Feed Grid (3:4 / 9:16 Camera Format) */}
-        <div className="bg-white dark:bg-mono-900 p-4 rounded-2xl border border-mono-200 dark:border-mono-800 shadow-sm space-y-3">
-          <div className="flex items-center justify-between">
-            <h3 className="font-bold text-xs uppercase tracking-wider font-mono text-mono-500 dark:text-mono-400 flex items-center gap-1.5">
-              <ImageIcon className="w-3.5 h-3.5" />
-              Koleksi Foto & Video Album ({mediaList.length})
-            </h3>
-            <span className="font-mono text-[10px] text-mono-400">
-              Ketuk foto untuk perbesar
+          {/* Location Map Coordinates */}
+          <div className="flex items-center gap-2 font-mono text-xs text-mono-500">
+            <MapPin className="w-4 h-4 text-red-500 shrink-0" />
+            <span>
+              Koordinat: {place.latitude?.toFixed(4)}, {place.longitude?.toFixed(4)}
             </span>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5">
-            {mediaList.map((m: any, idx: number) => (
-              <div
-                key={m.id || idx}
-                onClick={() => {
-                  setActiveMediaIndex(idx);
-                  setIsFullscreenModalOpen(true);
-                }}
-                className={`group relative aspect-[3/4] rounded-2xl overflow-hidden cursor-pointer border border-mono-200 dark:border-mono-800 shadow-sm hover:shadow-md transition-all duration-150 active:scale-95`}
-              >
-                {m.type === "photo" ? (
-                  <img
-                    src={m.storageUrl}
-                    alt={`Photo ${idx}`}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="w-full h-full bg-mono-900 flex items-center justify-center relative">
-                    <video src={m.storageUrl} className="w-full h-full object-cover opacity-70" />
-                    <Video className="w-6 h-6 text-white absolute drop-shadow-md" />
-                  </div>
-                )}
-
-                {/* Index badge */}
-                <div className="absolute bottom-2 left-2 px-2 py-0.5 rounded-full bg-mono-900/80 backdrop-blur-md text-white font-mono text-[9px]">
-                  #{idx + 1}
-                </div>
-
-                {/* Delete button overlay on single image */}
-                {mediaList.length > 1 && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDeleteSingleMedia(m.id, idx);
-                    }}
-                    className="absolute top-2 right-2 p-1.5 bg-red-600/90 text-white rounded-full opacity-0 group-hover:opacity-100 transition shadow hover:scale-110"
-                    title="Hapus foto ini"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
+          {/* Place Notes */}
+          {place.notes && (
+            <div className="bg-mono-50 dark:bg-mono-950 p-4 rounded-2xl border border-mono-200/60 dark:border-mono-800/60 text-xs sm:text-sm text-mono-700 dark:text-mono-300 leading-relaxed font-medium">
+              "{place.notes}"
+            </div>
+          )}
         </div>
 
-        {/* Exploration Details & Metadata */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Notes */}
-          {place.notes && (
-            <div className="bg-white dark:bg-mono-900 p-4 rounded-2xl border border-mono-200 dark:border-mono-800 shadow-sm">
-              <h3 className="font-mono text-xs text-mono-400 uppercase tracking-wider mb-2">
-                Catatan Eksplorasi
-              </h3>
-              <p className="text-xs sm:text-sm text-mono-800 dark:text-mono-200 leading-relaxed whitespace-pre-line">
-                {place.notes}
-              </p>
+        {/* Media Showcase Section */}
+        <div className="bg-white dark:bg-mono-900 border border-mono-200 dark:border-mono-800 rounded-3xl p-4 sm:p-6 shadow-sm space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="font-serif font-bold text-lg flex items-center gap-2">
+              <ImageIcon className="w-5 h-5" />
+              <span>Galeri Foto & Video ({mediaList.length})</span>
+            </h2>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setIsCameraModalOpen(true)}
+                className="px-3 py-1.5 bg-mono-100 dark:bg-mono-800 hover:bg-mono-200 dark:hover:bg-mono-700 font-mono text-xs font-bold rounded-xl flex items-center gap-1.5 transition"
+              >
+                <Camera className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Ambil Foto</span>
+              </button>
+
+              <label className="cursor-pointer px-3 py-1.5 bg-mono-900 dark:bg-mono-100 text-mono-100 dark:text-mono-900 hover:opacity-90 font-mono text-xs font-bold rounded-xl flex items-center gap-1.5 transition">
+                <Upload className="w-3.5 h-3.5" />
+                <span>Unggah Media</span>
+                <input
+                  type="file"
+                  multiple
+                  accept="image/*,video/*"
+                  onChange={handleFileUpload}
+                  className="hidden"
+                  disabled={isUploading}
+                />
+              </label>
+            </div>
+          </div>
+
+          {/* Active Media Viewer */}
+          {currentMediaItem ? (
+            <div className="relative rounded-2xl overflow-hidden bg-mono-950 aspect-video flex items-center justify-center group shadow-xl">
+              {currentMediaItem.type === "photo" ? (
+                <img
+                  src={currentMediaItem.storageUrl}
+                  alt={place.name}
+                  className="w-full h-full object-contain"
+                />
+              ) : (
+                <video
+                  src={currentMediaItem.storageUrl}
+                  controls
+                  className="w-full h-full object-contain"
+                />
+              )}
+
+              {/* Fullscreen Trigger */}
+              <button
+                onClick={() => setIsFullscreenModalOpen(true)}
+                className="absolute top-3 right-3 p-2 rounded-full bg-mono-900/80 hover:bg-mono-800 text-white opacity-0 group-hover:opacity-100 transition shadow-md backdrop-blur-sm"
+              >
+                <Maximize2 className="w-4 h-4" />
+              </button>
+
+              {/* Delete Current Media */}
+              <button
+                onClick={() => handleDeleteMedia(currentMediaItem.id)}
+                className="absolute bottom-3 right-3 p-2 rounded-full bg-red-600/80 hover:bg-red-600 text-white opacity-0 group-hover:opacity-100 transition shadow-md backdrop-blur-sm"
+                title="Hapus foto/video ini"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
+          ) : (
+            <div className="py-12 border-2 border-dashed border-mono-200 dark:border-mono-800 rounded-2xl text-center space-y-3">
+              <Camera className="w-10 h-10 mx-auto text-mono-400" />
+              <p className="font-mono text-xs text-mono-500">Belum ada foto atau video untuk tempat ini.</p>
             </div>
           )}
 
-          {/* Location Map */}
-          <div className="bg-white dark:bg-mono-900 p-4 rounded-2xl border border-mono-200 dark:border-mono-800 shadow-sm space-y-2">
-            <div className="flex items-center justify-between font-mono text-xs text-mono-400">
-              <span className="flex items-center gap-1 uppercase tracking-wider">
-                <MapPin className="w-3.5 h-3.5" /> Lokasi Peta
-              </span>
-              <span>
-                {place.latitude.toFixed(4)}, {place.longitude.toFixed(4)}
-              </span>
+          {/* Media Thumbnails Carousel Grid */}
+          {mediaList.length > 0 && (
+            <div className="flex items-center gap-2 overflow-x-auto pb-2 pt-1">
+              {mediaList.map((m: any, idx: number) => (
+                <button
+                  key={m.id || idx}
+                  onClick={() => setActiveMediaIndex(idx)}
+                  className={`w-20 h-20 rounded-xl overflow-hidden border-2 transition shrink-0 relative ${
+                    activeMediaIndex === idx
+                      ? "border-mono-900 dark:border-mono-100 scale-105 shadow-md"
+                      : "border-transparent opacity-60 hover:opacity-100"
+                  }`}
+                >
+                  {m.type === "photo" ? (
+                    <img src={m.storageUrl} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full bg-mono-900 flex items-center justify-center text-white">
+                      <Video className="w-6 h-6" />
+                    </div>
+                  )}
+                </button>
+              ))}
             </div>
-            <div className="h-48 rounded-xl overflow-hidden border border-mono-200 dark:border-mono-800">
-              <InteractiveMap places={[place]} isMiniMap={true} onSelectPlace={() => {}} />
-            </div>
+          )}
+        </div>
+
+        {/* Dedicated Interactive Location Map */}
+        <div className="bg-white dark:bg-mono-900 border border-mono-200 dark:border-mono-800 rounded-3xl p-4 sm:p-6 shadow-sm space-y-3">
+          <h2 className="font-serif font-bold text-lg flex items-center gap-2">
+            <MapPin className="w-5 h-5 text-red-500" />
+            <span>Peta Lokasi Singgahan</span>
+          </h2>
+
+          <div className="h-72 rounded-2xl overflow-hidden border border-mono-200 dark:border-mono-800 relative">
+            <InteractiveMap places={[place]} />
           </div>
         </div>
 
