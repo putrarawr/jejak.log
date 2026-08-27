@@ -23,7 +23,7 @@ import {
 } from "lucide-react";
 
 export default function UserProfilePage() {
-  const { user, isGuestMode, logout } = useAuth();
+  const { user, isGuestMode, logout, updateUserProfile } = useAuth();
   const router = useRouter();
   const supabase = createClient();
 
@@ -85,42 +85,15 @@ export default function UserProfilePage() {
     if (!user || isSaving) return;
 
     setIsSaving(true);
-    const cleanUsername = username.toLowerCase().trim();
-
     try {
-      if (!isGuestMode) {
-        try {
-          await supabase.from("users").upsert({
-            id: user.id,
-            email: user.email,
-            username: cleanUsername,
-            display_name: displayName,
-            bio,
-          });
-        } catch (supabaseErr) {
-          console.warn("Supabase profile save notice:", supabaseErr);
-        }
+      const res = await updateUserProfile(displayName, bio);
+      if (res.error) {
+        toast.error("Gagal memperbarui profil: " + res.error);
+      } else {
+        toast.success("Profil Anda berhasil diperbarui!");
       }
-
-      // Update local session storage
-      const updatedUser = {
-        ...user,
-        displayName,
-        username: cleanUsername,
-        bio,
-      };
-      localStorage.setItem("jejaklog_guest_user", JSON.stringify(updatedUser));
-      
-      toast.success("Profil Anda berhasil diperbarui");
     } catch (err: any) {
-      const updatedUser = {
-        ...user,
-        displayName,
-        username: cleanUsername,
-        bio,
-      };
-      localStorage.setItem("jejaklog_guest_user", JSON.stringify(updatedUser));
-      toast.success("Profil Anda berhasil diperbarui");
+      toast.error("Terjadi kesalahan saat menyimpan profil.");
     } finally {
       setIsSaving(false);
     }

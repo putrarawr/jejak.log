@@ -26,6 +26,7 @@ interface AuthContextType {
     username: string,
     displayName: string
   ) => Promise<{ error?: string; requiresVerification?: boolean; email?: string }>;
+  updateUserProfile: (displayName: string, bio?: string) => Promise<{ error?: string }>;
   loginWithGoogle: () => Promise<{ error?: string }>;
   resendVerificationEmail: (email: string) => Promise<{ error?: string }>;
   loginAsGuest: () => void;
@@ -60,13 +61,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const processSession = async (currentSession: Session | null) => {
     if (!currentSession?.user) {
-      if (!localStorage.getItem("jejaklog_guest_user")) {
-        setSession(null);
-        setUser(null);
+      const savedGuest = localStorage.getItem("jejaklog_guest_user");
+      if (savedGuest) {
+        try {
+          const guestData = JSON.parse(savedGuest);
+          setUser(guestData);
+          setIsGuestMode(true);
+          setLoading(false);
+          return;
+        } catch (e) {
+          localStorage.removeItem("jejaklog_guest_user");
+        }
       }
+      setSession(null);
+      setUser(null);
+      setIsGuestMode(false);
       setLoading(false);
       return;
     }
+
+    // REAL SESSION EXISTS — REMOVE GUEST USER KEY IMMEDIATELY
+    localStorage.removeItem("jejaklog_guest_user");
 
     // STRICT EMAIL CONFIRMATION CHECK
     const isEmailConfirmed = Boolean(
@@ -82,6 +97,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } catch (e) {}
       setSession(null);
       setUser(null);
+      setIsGuestMode(false);
       setLoading(false);
       return;
     }
@@ -104,21 +120,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
-    // Check if guest mode saved in localStorage
-    const savedGuest = localStorage.getItem("jejaklog_guest_user");
-    if (savedGuest) {
-      try {
-        const guestData = JSON.parse(savedGuest);
-        setUser(guestData);
-        setIsGuestMode(true);
-        setLoading(false);
-        return;
-      } catch (e) {
-        localStorage.removeItem("jejaklog_guest_user");
-      }
-    }
-
-    // Check Supabase session
     const getInitialSession = async () => {
       try {
         const {
@@ -148,6 +149,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (subscription) subscription.unsubscribe();
     };
   }, []);
+
+  const updateUserProfile = async (displayName: string, bio?: string) => {
+    if (!user) return { error: "User tidak ditemukan" };
+    try {
+      if (!isGuestMode) {
+        // Update Supabase Auth metadata
+        await supabase.auth.updateUser({
+          data: { display_name: displayName, bio },
+        });
+
+        // Update database users row
+        await supabase.from("users").upsert({
+          id: user.id,
+          email: user.email,
+          username: user.username,
+          display_name: displayName,
+          bio: bio || null,
+        });
+      } else {
+        const updatedGuest = { ...user, displayName };
+        localStorage.setItem("jejaklog_guest_user", JSON.stringify(updatedGuest));
+      }
+
+      setUser((prev) => (prev ? { ...prev, displayName } : null));
+      return {};
+    } catch (e: any) {
+      return { error: e.message || "Gagal memperbarui profil." };
+    }
+  };
 
   const loginWithEmail = async (email: string, pass: string) => {
     const cleanEmail = email.trim().toLowerCase();
@@ -359,6 +389,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isGuestMode,
         loginWithEmail,
         registerWithEmail,
+        updateUserProfile,
         loginWithGoogle,
         resendVerificationEmail,
         loginAsGuest,
