@@ -11,6 +11,7 @@ export interface CustomUser {
   displayName: string;
   avatarUrl?: string;
   isGuest?: boolean;
+  emailConfirmed?: boolean;
 }
 
 interface AuthContextType {
@@ -41,6 +42,67 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const supabase = createClient();
 
+  const getRedirectUrl = () => {
+    if (typeof window !== "undefined") {
+      if (window.location.hostname.includes("jejak-log.web.id")) {
+        return "https://jejak-log.web.id";
+      }
+      if (
+        window.location.origin &&
+        !window.location.origin.includes("192.168") &&
+        !window.location.origin.includes("localhost")
+      ) {
+        return window.location.origin;
+      }
+    }
+    return "https://jejak-log.web.id";
+  };
+
+  const processSession = async (currentSession: Session | null) => {
+    if (!currentSession?.user) {
+      if (!localStorage.getItem("jejaklog_guest_user")) {
+        setSession(null);
+        setUser(null);
+      }
+      setLoading(false);
+      return;
+    }
+
+    // STRICT EMAIL CONFIRMATION CHECK
+    const isEmailConfirmed = Boolean(
+      currentSession.user.email_confirmed_at || currentSession.user.confirmed_at
+    );
+
+    const isEmailProvider = currentSession.user.app_metadata?.provider === "email";
+
+    if (!isEmailConfirmed && isEmailProvider) {
+      // User has NOT verified their email — force sign out immediately!
+      try {
+        await supabase.auth.signOut();
+      } catch (e) {}
+      setSession(null);
+      setUser(null);
+      setLoading(false);
+      return;
+    }
+
+    setSession(currentSession);
+    setUser({
+      id: currentSession.user.id,
+      email: currentSession.user.email || "",
+      username:
+        currentSession.user.user_metadata?.username ||
+        currentSession.user.email?.split("@")[0] ||
+        "explorer",
+      displayName:
+        currentSession.user.user_metadata?.display_name || "Petualang Jejak",
+      avatarUrl: currentSession.user.user_metadata?.avatar_url,
+      emailConfirmed: true,
+    });
+    setIsGuestMode(false);
+    setLoading(false);
+  };
+
   useEffect(() => {
     // Check if guest mode saved in localStorage
     const savedGuest = localStorage.getItem("jejaklog_guest_user");
@@ -59,20 +121,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Check Supabase session
     const getInitialSession = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user) {
-          setSession(session);
-          setUser({
-            id: session.user.id,
-            email: session.user.email || "",
-            username: session.user.user_metadata?.username || session.user.email?.split("@")[0] || "explorer",
-            displayName: session.user.user_metadata?.display_name || "Petualang Jejak",
-            avatarUrl: session.user.user_metadata?.avatar_url,
-          });
-        }
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        await processSession(session);
       } catch (err) {
         console.warn("Auth session init network issue:", err);
-      } finally {
         setLoading(false);
       }
     };
@@ -81,22 +135,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     let subscription: any = null;
     try {
-      const { data } = supabase.auth.onAuthStateChange((_event, session) => {
-        if (session?.user) {
-          setSession(session);
-          setUser({
-            id: session.user.id,
-            email: session.user.email || "",
-            username: session.user.user_metadata?.username || session.user.email?.split("@")[0] || "explorer",
-            displayName: session.user.user_metadata?.display_name || "Petualang Jejak",
-            avatarUrl: session.user.user_metadata?.avatar_url,
-          });
-          setIsGuestMode(false);
-        } else if (!localStorage.getItem("jejaklog_guest_user")) {
-          setSession(null);
-          setUser(null);
-        }
-        setLoading(false);
+      const { data } = supabase.auth.onAuthStateChange(async (_event, session) => {
+        await processSession(session);
       });
       subscription = data?.subscription;
     } catch (e) {
@@ -109,13 +149,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  const getRedirectUrl = () => {
-    if (typeof window !== "undefined") {
-      return window.location.origin;
-    }
-    return process.env.NEXT_PUBLIC_SITE_URL || "https://jejak-log.web.id";
-  };
-
   const loginWithEmail = async (email: string, pass: string) => {
     const cleanEmail = email.trim().toLowerCase();
     try {
@@ -126,23 +159,45 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (error) {
         const msg = error.message.toLowerCase();
-        if (msg.includes("not confirmed") || msg.includes("email_not_confirmed") || msg.includes("unconfirmed")) {
+        if (
+          msg.includes("not confirmed") ||
+          msg.includes("email_not_confirmed") ||
+          msg.includes("unconfirmed")
+        ) {
           return {
-            error: "Email Anda belum diverifikasi. Silakan periksa kotak masuk/spam email Anda untuk melakukan verifikasi akun sebelum masuk.",
+            error:
+              "Email Anda belum diverifikasi. Silakan periksa kotak masuk/spam email Anda untuk melakukan verifikasi akun sebelum masuk.",
           };
         }
 
-        if (msg.includes("invalid login credentials") || msg.includes("invalid_credentials")) {
+        if (
+          msg.includes("invalid login credentials") ||
+          msg.includes("invalid_credentials")
+        ) {
           return { error: "Email atau kata sandi tidak valid. Silakan periksa kembali." };
         }
 
-        if (msg.includes("failed to fetch") || msg.includes("fetch") || msg.includes("network")) {
+        if (
+          msg.includes("failed to fetch") ||
+          msg.includes("fetch") ||
+          msg.includes("network")
+        ) {
           return {
-            error: "Gagal terhubung ke server Supabase. Pastikan koneksi internet stabil atau variabel environment NEXT_PUBLIC_SUPABASE_URL & ANON_KEY di Vercel sudah aktif.",
+            error:
+              "Gagal terhubung ke server Supabase. Pastikan koneksi internet stabil.",
           };
         }
 
         return { error: error.message };
+      }
+
+      // Verify email confirmed on sign in data
+      if (data?.user && !data.user.email_confirmed_at && !data.user.confirmed_at) {
+        await supabase.auth.signOut();
+        return {
+          error:
+            "Email Anda belum diverifikasi. Silakan periksa email Anda dan klik link verifikasi sebelum masuk.",
+        };
       }
 
       localStorage.removeItem("jejaklog_guest_user");
@@ -154,8 +209,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           await supabase.from("users").upsert({
             id: data.session.user.id,
             email: cleanEmail,
-            username: data.session.user.user_metadata?.username || cleanEmail.split("@")[0],
-            display_name: data.session.user.user_metadata?.display_name || cleanEmail.split("@")[0],
+            username:
+              data.session.user.user_metadata?.username || cleanEmail.split("@")[0],
+            display_name:
+              data.session.user.user_metadata?.display_name || cleanEmail.split("@")[0],
           });
         } catch (e) {}
       }
@@ -195,28 +252,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (error) {
         const msg = error.message.toLowerCase();
-        if (msg.includes("already registered") || msg.includes("already in use") || msg.includes("already exists")) {
+        if (
+          msg.includes("already registered") ||
+          msg.includes("already in use") ||
+          msg.includes("already exists")
+        ) {
           return { error: "Alamat email ini sudah terdaftar. Silakan masuk ke akun Anda." };
         }
 
-        if (msg.includes("failed to fetch") || msg.includes("fetch") || msg.includes("network")) {
+        if (
+          msg.includes("failed to fetch") ||
+          msg.includes("fetch") ||
+          msg.includes("network")
+        ) {
           return {
-            error: "Gagal terhubung ke server Supabase. Pastikan koneksi internet Anda aktif dan variabel environment NEXT_PUBLIC_SUPABASE_URL & ANON_KEY sudah terpasang di Vercel.",
+            error:
+              "Gagal terhubung ke server Supabase. Pastikan koneksi internet Anda aktif.",
           };
         }
 
         return { error: error.message };
       }
 
-      // Check if email confirmation is required by Supabase auth
-      if (data?.user && !data.session) {
-        return {
-          requiresVerification: true,
-          email: normalizedEmail,
-        };
+      // Sign out immediately so unverified session is NOT logged in
+      if (data?.session) {
+        await supabase.auth.signOut();
       }
 
-      return {};
+      return {
+        requiresVerification: true,
+        email: normalizedEmail,
+      };
     } catch (e: any) {
       return { error: e.message || "Gagal mendaftar. Silakan periksa koneksi Anda." };
     }
@@ -265,6 +331,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       username: "petualang_demo",
       displayName: "Petualang Demo",
       isGuest: true,
+      emailConfirmed: true,
     };
 
     localStorage.setItem("jejaklog_guest_user", JSON.stringify(guestUser));
