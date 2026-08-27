@@ -183,25 +183,7 @@ function LoginForm() {
             </button>
           </form>
 
-          {/* Divider */}
-          <div className="relative my-6">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-mono-200 dark:border-mono-800" />
-            </div>
-            <div className="relative flex justify-center text-xs font-mono uppercase">
-              <span className="bg-white dark:bg-mono-900 px-3 text-mono-400">Atau</span>
-            </div>
-          </div>
 
-          {/* Guest Mode Entry */}
-          <button
-            type="button"
-            onClick={handleGuestLogin}
-            className="w-full py-2.5 bg-mono-100 dark:bg-mono-800 hover:bg-mono-200 dark:hover:bg-mono-700 text-mono-800 dark:text-mono-200 font-mono text-xs font-semibold rounded-xl flex items-center justify-center gap-2 transition"
-          >
-            <ShieldCheck className="w-4 h-4 text-amber-500" />
-            <span>Coba Dalam Mode Demo (Tanpa Login)</span>
-          </button>
 
           <div className="mt-6 text-center text-xs text-mono-500 dark:text-mono-400">
             Belum memiliki akun?{" "}

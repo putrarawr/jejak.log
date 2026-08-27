@@ -66,12 +66,7 @@ export default function VerificationModal({
           Silakan buka inbox atau folder <strong>Spam / Promosi</strong> di email Anda dan klik link verifikasi untuk mengaktifkan akun.
         </p>
 
-        <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-[11px] text-amber-700 dark:text-amber-300 text-left mb-5">
-          <p className="font-semibold mb-0.5">Tips Pengujian di HP (Network IP):</p>
-          <p>
-            Link verifikasi Supabase telah dikonfigurasi mengikuti lokasi network HP Anda. Jika email bawaan Supabase tertahan filter spam/rate limit, Anda dapat menggunakan <strong>Mode Demo</strong> untuk menguji seluruh fitur langsung.
-          </p>
-        </div>
+
 
         {resendStatus && (
           <div className={`mb-4 p-3 rounded-xl text-xs font-mono border ${

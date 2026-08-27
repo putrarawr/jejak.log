@@ -210,11 +210,7 @@ export default function AppShell({
               </div>
               <span className="hidden sm:inline">Jejak.log</span>
             </Link>
-            {isGuestMode && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/30 text-amber-600 dark:text-amber-400 text-xs font-mono shrink-0 whitespace-nowrap">
-                <ShieldAlert className="w-3 h-3" /> Mode Demo
-              </span>
-            )}
+
           </div>
 
           {/* Center Tabs for Desktop (Only on /app main page) */}
@@ -313,11 +309,7 @@ export default function AppShell({
                     </Link>
                   </div>
 
-                  {isGuestMode && (
-                    <div className="px-4 py-2 text-[11px] text-amber-600 dark:text-amber-400 bg-amber-500/5 border-b border-mono-100 dark:border-mono-800">
-                      Anda berada dalam Mode Demo. Data disimpan di perangkat lokal.
-                    </div>
-                  )}
+
 
                   {/* Backup & Restore Action Items */}
                   <div className="py-1 border-b border-mono-100 dark:border-mono-800">

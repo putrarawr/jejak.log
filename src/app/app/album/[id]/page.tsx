@@ -348,11 +348,11 @@ export default function DedicatedAlbumPage() {
           Singgahan ini mungkin telah dihapus atau belum tersinkronisasi.
         </p>
         <Link
-          href="/app"
+          href="/"
           className="px-5 py-2.5 bg-mono-900 dark:bg-mono-100 text-mono-100 dark:text-mono-900 font-mono text-xs font-bold rounded-xl flex items-center gap-2 shadow hover:scale-105 transition"
         >
           <ArrowLeft className="w-4 h-4" />
-          <span>Kembali ke Dashboard</span>
+          <span>Kembali ke Beranda</span>
         </Link>
       </div>
     );
@@ -376,11 +376,11 @@ export default function DedicatedAlbumPage() {
           Maaf, album ini bersifat privat dan hanya dapat dilihat oleh pemiliknya.
         </p>
         <Link
-          href="/app"
+          href="/"
           className="px-5 py-2.5 bg-mono-900 dark:bg-mono-100 text-mono-100 dark:text-mono-900 font-mono text-xs font-bold rounded-xl flex items-center gap-2 shadow hover:scale-105 transition mt-4"
         >
           <ArrowLeft className="w-4 h-4" />
-          <span>Kembali ke Dashboard</span>
+          <span>Kembali ke Beranda</span>
         </Link>
       </div>
     );
@@ -392,11 +392,11 @@ export default function DedicatedAlbumPage() {
       <header className="sticky top-0 z-40 bg-white/80 dark:bg-mono-900/80 backdrop-blur-md border-b border-mono-200 dark:border-mono-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
           <Link
-            href="/app"
+            href="/"
             className="flex items-center gap-2 font-mono text-xs font-semibold text-mono-600 dark:text-mono-400 hover:text-mono-900 dark:hover:text-mono-100 transition"
           >
             <ArrowLeft className="w-4 h-4" />
-            <span>Kembali ke Dashboard</span>
+            <span>Kembali ke Beranda</span>
           </Link>
 
           <div className="flex items-center gap-2">
