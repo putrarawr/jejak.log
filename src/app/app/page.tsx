@@ -151,7 +151,7 @@ function DashboardContent() {
                     <span className="font-mono text-xs animate-pulse">Memuat Peta...</span>
                   </div>
                 ) : (
-                  <InteractiveMap places={places} onDeletePlace={handleDeletePlace} />
+                  <InteractiveMap places={places} />
                 )}
               </div>
             </div>
