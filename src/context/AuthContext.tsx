@@ -301,6 +301,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           };
         }
 
+        if (
+          msg.includes("rate limit") ||
+          msg.includes("over_email_send_rate_limit") ||
+          msg.includes("too many requests") ||
+          msg.includes("over_email")
+        ) {
+          return {
+            error:
+              "Batas pengiriman email Supabase tercapai (Rate Limit exceeded). Silakan tunggu sekitar 15-30 menit sebelum meminta email verifikasi baru, atau atur Email Rate Limit di Supabase Dashboard > Auth Settings.",
+          };
+        }
+
         return { error: error.message };
       }
 
@@ -330,6 +342,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
 
       if (error) {
+        const msg = error.message.toLowerCase();
+        if (
+          msg.includes("rate limit") ||
+          msg.includes("over_email_send_rate_limit") ||
+          msg.includes("too many requests") ||
+          msg.includes("over_email")
+        ) {
+          return {
+            error:
+              "Batas pengiriman email Supabase tercapai (Rate Limit exceeded). Silakan tunggu sekitar 15-30 menit sebelum meminta email verifikasi baru, atau atur Email Rate Limit di Supabase Dashboard > Auth Settings.",
+          };
+        }
         return { error: error.message };
       }
       return {};
