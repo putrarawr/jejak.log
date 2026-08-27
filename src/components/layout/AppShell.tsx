@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import ThemeToggle from "@/components/theme-toggle";
 import { createClient } from "@/lib/supabase/client";
+import { exportToGPX, exportToKML } from "@/lib/utils/exportGeo";
+import { toast } from "sonner";
 import {
   Compass,
   Map as MapIcon,
@@ -21,8 +23,8 @@ import {
 
 interface AppShellProps {
   children: React.ReactNode;
-  activeTab: "map" | "grid";
-  onTabChange: (tab: "map" | "grid") => void;
+  activeTab: "map" | "grid" | "timeline";
+  onTabChange: (tab: "map" | "grid" | "timeline") => void;
   onOpenAddModal: () => void;
   totalPlacesCount: number;
 }
@@ -64,8 +66,81 @@ export default function AppShell({
       a.click();
       URL.revokeObjectURL(url);
       setShowUserMenu(false);
+      toast.success("📁 Data berhasil dicadangkan!");
     } catch (err) {
-      alert("Gagal mencadangkan data.");
+      toast.error("Gagal mencadangkan data.");
+    }
+  };
+
+  const handleExportGPX = async () => {
+    try {
+      let dataToExport: any[] = [];
+      if (user) {
+        const { data } = await supabase.from("places").select("*").eq("user_id", user.id);
+        if (data) dataToExport = data;
+      } else {
+        const saved = localStorage.getItem("jejaklog_places_guest") || "[]";
+        dataToExport = JSON.parse(saved);
+      }
+      
+      const mapped = dataToExport.map((p) => ({
+        id: p.id,
+        name: p.name,
+        type: p.type,
+        latitude: p.latitude,
+        longitude: p.longitude,
+        notes: p.notes,
+        visitedAt: p.visited_at || p.visitedAt || new Date().toISOString(),
+      }));
+
+      const gpxXml = exportToGPX(mapped);
+      const blob = new Blob([gpxXml], { type: "application/gpx+xml" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `jejaklog_export_${new Date().toISOString().split("T")[0]}.gpx`;
+      a.click();
+      URL.revokeObjectURL(url);
+      setShowUserMenu(false);
+      toast.success("🗺️ Berkas GPX berhasil diekspor!");
+    } catch (err) {
+      toast.error("Gagal mengeskpor format GPX.");
+    }
+  };
+
+  const handleExportKML = async () => {
+    try {
+      let dataToExport: any[] = [];
+      if (user) {
+        const { data } = await supabase.from("places").select("*").eq("user_id", user.id);
+        if (data) dataToExport = data;
+      } else {
+        const saved = localStorage.getItem("jejaklog_places_guest") || "[]";
+        dataToExport = JSON.parse(saved);
+      }
+
+      const mapped = dataToExport.map((p) => ({
+        id: p.id,
+        name: p.name,
+        type: p.type,
+        latitude: p.latitude,
+        longitude: p.longitude,
+        notes: p.notes,
+        visitedAt: p.visited_at || p.visitedAt || new Date().toISOString(),
+      }));
+
+      const kmlXml = exportToKML(mapped);
+      const blob = new Blob([kmlXml], { type: "application/vnd.google-earth.kml+xml" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `jejaklog_export_${new Date().toISOString().split("T")[0]}.kml`;
+      a.click();
+      URL.revokeObjectURL(url);
+      setShowUserMenu(false);
+      toast.success("🌍 Berkas Google Earth KML berhasil diekspor!");
+    } catch (err) {
+      toast.error("Gagal mengeskpor KML.");
     }
   };
 
@@ -79,41 +154,36 @@ export default function AppShell({
         const parsed = JSON.parse(content);
         if (Array.isArray(parsed)) {
           if (user) {
-            // Import to Supabase Cloud
             const mappedData = parsed.map((p: any) => ({
-              id: p.id, // Gunakan ID asli agar tidak dobel jika sudah ada
+              id: p.id,
               user_id: user.id,
               name: p.name,
               type: p.type,
               latitude: p.latitude,
               longitude: p.longitude,
               notes: p.notes,
-              // Fallback property name untuk support backup versi lama (localStorage)
               visited_at: p.visited_at || p.visitedAt || new Date().toISOString(),
               is_public: p.is_public !== undefined ? p.is_public : (p.isPublic || false),
               media_json: p.media_json || p.media || []
             }));
 
-            // Upsert (Insert/Update)
             const { error } = await supabase.from("places").upsert(mappedData);
             if (error) {
-              console.error(error);
-              alert("Gagal memulihkan ke Cloud: " + error.message);
+              toast.error("Gagal memulihkan ke Cloud: " + error.message);
               return;
             }
           } else {
-            // Guest mode fallback
             const key = "jejaklog_places_guest";
             localStorage.setItem(key, JSON.stringify(parsed));
           }
           
-          alert("Cadangan data berhasil dipulihkan! Halaman akan memuat ulang.");
-          window.location.reload();
+          toast.success("Cadangan data berhasil dipulihkan!");
+          setTimeout(() => window.location.reload(), 1000);
         } else {
-          alert("Format berkas cadangan JSON tidak valid.");
+          toast.error("Format berkas cadangan JSON tidak valid.");
         }
       } catch (err) {
-        alert("Gagal membaca berkas cadangan JSON.");
+        toast.error("Gagal membaca berkas cadangan JSON.");
       }
     };
     reader.readAsText(file);
@@ -148,7 +218,7 @@ export default function AppShell({
               onClick={() => onTabChange("map")}
               className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-medium transition ${
                 activeTab === "map"
-                  ? "bg-white dark:bg-mono-900 text-mono-900 dark:text-mono-100 shadow-sm"
+                  ? "bg-white dark:bg-mono-900 text-mono-900 dark:text-mono-100 shadow-sm font-bold"
                   : "text-mono-500 dark:text-mono-400 hover:text-mono-900 dark:hover:text-mono-100"
               }`}
             >
@@ -159,12 +229,23 @@ export default function AppShell({
               onClick={() => onTabChange("grid")}
               className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-medium transition ${
                 activeTab === "grid"
-                  ? "bg-white dark:bg-mono-900 text-mono-900 dark:text-mono-100 shadow-sm"
+                  ? "bg-white dark:bg-mono-900 text-mono-900 dark:text-mono-100 shadow-sm font-bold"
                   : "text-mono-500 dark:text-mono-400 hover:text-mono-900 dark:hover:text-mono-100"
               }`}
             >
               <Grid className="w-3.5 h-3.5" />
               Grid Album
+            </button>
+            <button
+              onClick={() => onTabChange("timeline")}
+              className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-medium transition ${
+                activeTab === "timeline"
+                  ? "bg-white dark:bg-mono-900 text-mono-900 dark:text-mono-100 shadow-sm font-bold"
+                  : "text-mono-500 dark:text-mono-400 hover:text-mono-900 dark:hover:text-mono-100"
+              }`}
+            >
+              <Compass className="w-3.5 h-3.5" />
+              Timeline Kronologis
             </button>
           </div>
 
@@ -209,11 +290,16 @@ export default function AppShell({
                     )}
                   </div>
 
-                  {isGuestMode && (
-                    <div className="px-4 py-2 text-[11px] text-amber-600 dark:text-amber-400 bg-amber-500/5 border-b border-mono-100 dark:border-mono-800">
-                      Anda berada dalam Mode Demo. Data disimpan di perangkat lokal.
-                    </div>
-                  )}
+                  <div className="py-1 border-b border-mono-100 dark:border-mono-800">
+                    <Link
+                      href="/app/profile"
+                      onClick={() => setShowUserMenu(false)}
+                      className="w-full text-left px-4 py-2 text-xs text-mono-700 dark:text-mono-300 hover:bg-mono-100 dark:hover:bg-mono-800/50 flex items-center gap-2 transition"
+                    >
+                      <User className="w-3.5 h-3.5 text-mono-500" />
+                      <span>Pengaturan Profil Akun</span>
+                    </Link>
+                  </div>
 
                   {/* Backup & Restore Action Items */}
                   <div className="py-1 border-b border-mono-100 dark:border-mono-800">
@@ -223,6 +309,22 @@ export default function AppShell({
                     >
                       <Download className="w-3.5 h-3.5 text-mono-500" />
                       <span>Cadangkan Data (.json)</span>
+                    </button>
+
+                    <button
+                      onClick={handleExportGPX}
+                      className="w-full text-left px-4 py-2 text-xs text-mono-700 dark:text-mono-300 hover:bg-mono-100 dark:hover:bg-mono-800/50 flex items-center gap-2 transition"
+                    >
+                      <Download className="w-3.5 h-3.5 text-blue-500" />
+                      <span>Ekspor Format GPX (.gpx)</span>
+                    </button>
+
+                    <button
+                      onClick={handleExportKML}
+                      className="w-full text-left px-4 py-2 text-xs text-mono-700 dark:text-mono-300 hover:bg-mono-100 dark:hover:bg-mono-800/50 flex items-center gap-2 transition"
+                    >
+                      <Download className="w-3.5 h-3.5 text-emerald-500" />
+                      <span>Ekspor Google Earth (.kml)</span>
                     </button>
 
                     <label className="cursor-pointer w-full text-left px-4 py-2 text-xs text-mono-700 dark:text-mono-300 hover:bg-mono-100 dark:hover:bg-mono-800/50 flex items-center gap-2 transition">
@@ -254,37 +356,49 @@ export default function AppShell({
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto p-3 sm:p-6 flex flex-col">{children}</main>
 
-      {/* Mobile Bottom Navigation Bar (Floating Mobile-First UI) */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/90 dark:bg-mono-900/90 backdrop-blur-lg border-t border-mono-200 dark:border-mono-800 px-6 py-2 flex items-center justify-around shadow-2xl">
+      {/* Mobile Bottom Navigation Bar */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/90 dark:bg-mono-900/90 backdrop-blur-lg border-t border-mono-200 dark:border-mono-800 px-4 py-2 flex items-center justify-around shadow-2xl">
         <button
           onClick={() => onTabChange("map")}
-          className={`flex flex-col items-center gap-1 p-1 transition ${
+          className={`flex flex-col items-center gap-0.5 p-1 transition ${
             activeTab === "map"
               ? "text-mono-900 dark:text-mono-100 font-semibold"
               : "text-mono-400 hover:text-mono-700 dark:hover:text-mono-300"
           }`}
         >
-          <MapIcon className="w-5 h-5" />
-          <span className="text-[10px] font-mono">Peta</span>
-        </button>
-
-        <button
-          onClick={onOpenAddModal}
-          className="w-12 h-12 rounded-full bg-mono-900 dark:bg-mono-100 text-mono-100 dark:text-mono-900 flex items-center justify-center shadow-lg -mt-4 active:scale-95 transition"
-        >
-          <PlusCircle className="w-6 h-6" />
+          <MapIcon className="w-4 h-4" />
+          <span className="text-[9px] font-mono">Peta</span>
         </button>
 
         <button
           onClick={() => onTabChange("grid")}
-          className={`flex flex-col items-center gap-1 p-1 transition ${
+          className={`flex flex-col items-center gap-0.5 p-1 transition ${
             activeTab === "grid"
               ? "text-mono-900 dark:text-mono-100 font-semibold"
               : "text-mono-400 hover:text-mono-700 dark:hover:text-mono-300"
           }`}
         >
-          <Grid className="w-5 h-5" />
-          <span className="text-[10px] font-mono">Album</span>
+          <Grid className="w-4 h-4" />
+          <span className="text-[9px] font-mono">Grid</span>
+        </button>
+
+        <button
+          onClick={onOpenAddModal}
+          className="w-11 h-11 rounded-full bg-mono-900 dark:bg-mono-100 text-mono-100 dark:text-mono-900 flex items-center justify-center shadow-lg -mt-3 active:scale-95 transition"
+        >
+          <PlusCircle className="w-5 h-5" />
+        </button>
+
+        <button
+          onClick={() => onTabChange("timeline")}
+          className={`flex flex-col items-center gap-0.5 p-1 transition ${
+            activeTab === "timeline"
+              ? "text-mono-900 dark:text-mono-100 font-semibold"
+              : "text-mono-400 hover:text-mono-700 dark:hover:text-mono-300"
+          }`}
+        >
+          <Compass className="w-4 h-4" />
+          <span className="text-[9px] font-mono">Timeline</span>
         </button>
       </nav>
     </div>

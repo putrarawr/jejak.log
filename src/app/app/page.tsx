@@ -5,8 +5,10 @@ import AppShell from "@/components/layout/AppShell";
 import dynamic from "next/dynamic";
 import AlbumGrid from "@/components/album/AlbumGrid";
 import AddEntryModal from "@/components/entry/AddEntryModal";
-import EntryDetailModal from "@/components/album/EntryDetailModal";
+import StatsWidget from "@/components/dashboard/StatsWidget";
+import TimelineView from "@/components/timeline/TimelineView";
 import { useAuth } from "@/context/AuthContext";
+import { createClient } from "@/lib/supabase/client";
 
 const InteractiveMap = dynamic(() => import("@/components/map/InteractiveMap"), {
   ssr: false,
@@ -66,12 +68,10 @@ const INITIAL_SAMPLE_PLACES = [
   },
 ];
 
-import { createClient } from "@/lib/supabase/client";
-
 export default function AppPage() {
   const { user, isGuestMode } = useAuth();
   const supabase = createClient();
-  const [activeTab, setActiveTab] = useState<"map" | "grid">("map");
+  const [activeTab, setActiveTab] = useState<"map" | "grid" | "timeline">("map");
   const [places, setPlaces] = useState<any[]>([]);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -83,7 +83,6 @@ export default function AppPage() {
         return;
       }
 
-      // Guest / Demo Mode gets sample places if they haven't saved any yet
       if (isGuestMode) {
         const savedGuestPlaces = localStorage.getItem("jejaklog_places_guest");
         if (savedGuestPlaces) {
@@ -99,7 +98,6 @@ export default function AppPage() {
         return;
       }
 
-      // Registered users start clean with NO dummy places
       try {
         const { data, error } = await supabase
           .from("places")
@@ -200,7 +198,6 @@ export default function AppPage() {
   };
 
   const handleToggleFavorite = async (id: string) => {
-    // Optimistic UI update
     setPlaces(places.map((p) => p.id === id ? { ...p, isFavorite: !p.isFavorite } : p));
   };
 
@@ -211,6 +208,9 @@ export default function AppPage() {
       onOpenAddModal={() => setIsAddModalOpen(true)}
       totalPlacesCount={places.length}
     >
+      {/* Stats Summary Widget Header */}
+      <StatsWidget places={places} />
+
       {activeTab === "map" ? (
         <div className="w-full flex-1 flex flex-col min-h-[500px]">
           <div className="flex items-center justify-between mb-3">
@@ -223,7 +223,7 @@ export default function AppPage() {
             <InteractiveMap places={places} />
           </div>
         </div>
-      ) : (
+      ) : activeTab === "grid" ? (
         <div className="w-full flex-1">
           <div className="mb-4">
             <h2 className="font-bold text-lg tracking-tight">Arsip Galeri & Grid Album</h2>
@@ -233,6 +233,16 @@ export default function AppPage() {
           </div>
           <AlbumGrid places={places} onSelectPlace={() => {}} />
         </div>
+      ) : (
+        <div className="w-full flex-1">
+          <div className="mb-4">
+            <h2 className="font-bold text-lg tracking-tight">Timeline Kronologis Eksplorasi</h2>
+            <p className="text-xs text-mono-500 dark:text-mono-400">
+              Jurnal perjalanan berdasarkan alur garis waktu kunjungan per bulan & tahun.
+            </p>
+          </div>
+          <TimelineView places={places} />
+        </div>
       )}
 
       {/* Add Place Modal */}
@@ -241,8 +251,6 @@ export default function AppPage() {
         onClose={() => setIsAddModalOpen(false)}
         onAddPlace={handleAddPlace}
       />
-
-
     </AppShell>
   );
 }

@@ -7,6 +7,9 @@ import dynamic from "next/dynamic";
 import ThemeToggle from "@/components/theme-toggle";
 import { useAuth } from "@/context/AuthContext";
 import CameraCaptureModal from "@/components/camera/CameraCaptureModal";
+import EditEntryModal from "@/components/entry/EditEntryModal";
+import SocialActions from "@/components/social/SocialActions";
+import { toast } from "sonner";
 import {
   ArrowLeft,
   Calendar,
@@ -24,6 +27,7 @@ import {
   ChevronLeft,
   ChevronRight,
   X,
+  Edit3,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
@@ -94,39 +98,75 @@ export default function DedicatedAlbumPage() {
   const [activeMediaIndex, setActiveMediaIndex] = useState(0);
   const [isFullscreenModalOpen, setIsFullscreenModalOpen] = useState(false);
   const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
-  const { user } = useAuth();
+  const { user, isGuestMode } = useAuth();
   const supabase = createClient();
 
   useEffect(() => {
     async function fetchAlbum() {
       if (!user) return;
-      const { data, error } = await supabase
-        .from("places")
-        .select("*")
-        .eq("id", albumId)
-        .single();
-      
-      if (data) {
-        setPlace({
-          id: data.id,
-          name: data.name,
-          type: data.type,
-          latitude: data.latitude,
-          longitude: data.longitude,
-          notes: data.notes,
-          visitedAt: data.visited_at,
-          isPublic: data.is_public,
-          media: data.media_json,
-        });
+      try {
+        const { data } = await supabase
+          .from("places")
+          .select("*")
+          .eq("id", albumId)
+          .single();
+        
+        if (data) {
+          setPlace({
+            id: data.id,
+            name: data.name,
+            type: data.type,
+            latitude: data.latitude,
+            longitude: data.longitude,
+            notes: data.notes,
+            visitedAt: data.visited_at,
+            isPublic: data.is_public,
+            media: data.media_json,
+          });
+        } else {
+          // Check local user storage or initial sample places
+          const localPlacesKey = isGuestMode ? "jejaklog_places_guest" : `jejaklog_places_${user.id}`;
+          const savedPlaces = localStorage.getItem(localPlacesKey);
+          if (savedPlaces) {
+            const parsed = JSON.parse(savedPlaces);
+            const found = parsed.find((p: any) => p.id === albumId);
+            if (found) setPlace(found);
+          } else {
+            const sample = INITIAL_SAMPLE_PLACES.find((p) => p.id === albumId);
+            if (sample) setPlace(sample);
+          }
+        }
+      } catch (e) {
+        const sample = INITIAL_SAMPLE_PLACES.find((p) => p.id === albumId);
+        if (sample) setPlace(sample);
       }
     }
     fetchAlbum();
-  }, [user, albumId]);
+  }, [user, albumId, isGuestMode]);
 
   const handleUpdateCurrentPlace = async (updatedPlace: any) => {
     setPlace(updatedPlace);
-    await supabase.from("places").update({ media_json: updatedPlace.media }).eq("id", updatedPlace.id);
+    if (!isGuestMode) {
+      await supabase
+        .from("places")
+        .update({
+          name: updatedPlace.name,
+          type: updatedPlace.type,
+          latitude: updatedPlace.latitude,
+          longitude: updatedPlace.longitude,
+          notes: updatedPlace.notes,
+          visited_at: updatedPlace.visitedAt,
+          is_public: updatedPlace.isPublic,
+          media_json: updatedPlace.media,
+        })
+        .eq("id", updatedPlace.id);
+    } else {
+      const savedPlaces = JSON.parse(localStorage.getItem("jejaklog_places_guest") || "[]");
+      const updatedList = savedPlaces.map((p: any) => (p.id === updatedPlace.id ? updatedPlace : p));
+      localStorage.setItem("jejaklog_places_guest", JSON.stringify(updatedList));
+    }
   };
 
   const [toastMsg, setToastMsg] = useState<string>("");
@@ -280,6 +320,14 @@ export default function DedicatedAlbumPage() {
 
           <div className="flex items-center gap-1">
             <button
+              onClick={() => setIsEditModalOpen(true)}
+              className="p-2 text-mono-600 dark:text-mono-400 hover:text-mono-900 dark:hover:text-mono-100 hover:bg-mono-100 dark:hover:bg-mono-800 rounded-lg transition flex items-center gap-1 text-xs font-mono"
+              title="Edit Detail Singgahan"
+            >
+              <Edit3 className="w-4 h-4" />
+              <span className="hidden sm:inline">Edit Singgahan</span>
+            </button>
+            <button
               onClick={handleDeleteEntireAlbum}
               className="p-2 text-red-500 hover:bg-red-500/10 rounded-lg transition"
               title="Hapus Album"
@@ -428,6 +476,9 @@ export default function DedicatedAlbumPage() {
             </div>
           </div>
         </div>
+
+        {/* Social Actions (Likes & Comments for Public Places) */}
+        <SocialActions placeId={place.id} isPublic={place.isPublic} />
       </main>
 
       {/* Lightbox Fullscreen Modal */}
@@ -490,6 +541,14 @@ export default function DedicatedAlbumPage() {
         isOpen={isCameraModalOpen}
         onClose={() => setIsCameraModalOpen(false)}
         onCapturePhoto={handleCapturePhotoFromCamera}
+      />
+
+      {/* Edit Place Details Modal */}
+      <EditEntryModal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        place={place}
+        onUpdatePlace={handleUpdateCurrentPlace}
       />
     </div>
   );

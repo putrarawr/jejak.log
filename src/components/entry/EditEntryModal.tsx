@@ -1,0 +1,370 @@
+"use client";
+
+import React, { useState, useEffect } from "react";
+import {
+  X,
+  MapPin,
+  Calendar,
+  Tag,
+  FileText,
+  Navigation,
+  Globe,
+  Lock,
+  Edit3,
+} from "lucide-react";
+import dynamic from "next/dynamic";
+import { toast } from "sonner";
+
+const InteractiveMap = dynamic(() => import("@/components/map/InteractiveMap"), {
+  ssr: false,
+});
+
+interface EditEntryModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  place: {
+    id: string;
+    name: string;
+    type: string;
+    latitude: number;
+    longitude: number;
+    notes?: string;
+    visitedAt: string;
+    isPublic: boolean;
+    media?: any[];
+  } | null;
+  onUpdatePlace: (updatedPlace: any) => Promise<void> | void;
+}
+
+const DEFAULT_TYPES = ["kuliner", "alam", "kota", "sejarah", "kopi", "custom"];
+
+export default function EditEntryModal({
+  isOpen,
+  onClose,
+  place,
+  onUpdatePlace,
+}: EditEntryModalProps) {
+  const [name, setName] = useState("");
+  const [type, setType] = useState("kuliner");
+  const [customType, setCustomType] = useState("");
+  const [notes, setNotes] = useState("");
+  const [visitedAt, setVisitedAt] = useState(new Date().toISOString().split("T")[0]);
+  const [isPublic, setIsPublic] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Location
+  const [latitude, setLatitude] = useState<number>(-6.2088);
+  const [longitude, setLongitude] = useState<number>(106.8456);
+  const [isMapPickerOpen, setIsMapPickerOpen] = useState(false);
+  const [isDetectingGps, setIsDetectingGps] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  useEffect(() => {
+    if (place) {
+      setName(place.name || "");
+      const isDefaultType = DEFAULT_TYPES.includes(place.type);
+      if (isDefaultType) {
+        setType(place.type);
+        setCustomType("");
+      } else {
+        setType("custom");
+        setCustomType(place.type);
+      }
+      setNotes(place.notes || "");
+      if (place.visitedAt) {
+        setVisitedAt(new Date(place.visitedAt).toISOString().split("T")[0]);
+      }
+      setIsPublic(place.isPublic ?? false);
+      setLatitude(place.latitude || -6.2088);
+      setLongitude(place.longitude || 106.8456);
+    }
+  }, [place]);
+
+  if (!isOpen || !place) return null;
+
+  const handleDetectGPS = () => {
+    if (!navigator.geolocation) {
+      toast.error("Browser Anda tidak mendukung Geolocation GPS.");
+      return;
+    }
+    setIsDetectingGps(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setLatitude(pos.coords.latitude);
+        setLongitude(pos.coords.longitude);
+        setIsDetectingGps(false);
+        toast.success("📍 Posisi GPS berhasil diperbarui!");
+      },
+      (err) => {
+        toast.error(`Gagal mengambil posisi GPS (${err.message}).`);
+        setIsDetectingGps(false);
+      },
+      { enableHighAccuracy: false, timeout: 30000, maximumAge: 0 }
+    );
+  };
+
+  const handleGeocodeSearch = async () => {
+    if (!searchQuery.trim()) return;
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}`
+      );
+      const data = await res.json();
+      if (data && data.length > 0) {
+        setLatitude(parseFloat(data[0].lat));
+        setLongitude(parseFloat(data[0].lon));
+        toast.success(`Lokasi ditemukan: ${data[0].display_name.split(",")[0]}`);
+      } else {
+        toast.error("Lokasi tidak ditemukan. Coba kata kunci lain.");
+      }
+    } catch (err) {
+      toast.error("Gagal mencari lokasi.");
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim() || isSaving) return;
+
+    setIsSaving(true);
+    const selectedType = type === "custom" && customType ? customType : type;
+
+    try {
+      const updatedPlaceData = {
+        ...place,
+        name,
+        type: selectedType,
+        latitude,
+        longitude,
+        notes,
+        visitedAt: new Date(visitedAt).toISOString(),
+        isPublic,
+      };
+
+      await onUpdatePlace(updatedPlaceData);
+      toast.success("Singgahan berhasil diperbarui!");
+      setIsSaving(false);
+      onClose();
+    } catch (err: any) {
+      toast.error(err.message || "Terjadi kesalahan saat menyimpan perubahan.");
+      setIsSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-mono-950/70 backdrop-blur-sm overflow-y-auto">
+      <div className="bg-white dark:bg-mono-900 border border-mono-200 dark:border-mono-800 w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden my-auto animate-in fade-in zoom-in-95 duration-200">
+        {/* Header */}
+        <div className="flex items-center justify-between p-4 sm:p-5 border-b border-mono-100 dark:border-mono-800">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-mono-900 dark:bg-mono-100 text-mono-100 dark:text-mono-900 flex items-center justify-center">
+              <Edit3 className="w-4 h-4" />
+            </div>
+            <h3 className="font-bold text-base tracking-tight">Edit Detail Singgahan</h3>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded-lg hover:bg-mono-100 dark:hover:bg-mono-800 text-mono-400 hover:text-mono-900 dark:hover:text-mono-100 transition"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Form Body */}
+        <form onSubmit={handleSubmit} className="p-4 sm:p-5 space-y-4 max-h-[80vh] overflow-y-auto">
+          {/* Nama Tempat */}
+          <div>
+            <label className="block text-xs font-mono uppercase tracking-wider text-mono-500 dark:text-mono-400 mb-1">
+              Nama Tempat *
+            </label>
+            <input
+              type="text"
+              required
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="w-full px-3.5 py-2.5 bg-mono-50 dark:bg-mono-950 border border-mono-200 dark:border-mono-800 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-mono-900 dark:focus:ring-mono-100 transition"
+            />
+          </div>
+
+          {/* Tipe Tempat */}
+          <div>
+            <label className="block text-xs font-mono uppercase tracking-wider text-mono-500 dark:text-mono-400 mb-1">
+              Kategori / Tipe Tempat
+            </label>
+            <div className="flex flex-wrap gap-1.5 mb-2">
+              {DEFAULT_TYPES.map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setType(t)}
+                  className={`px-3 py-1 rounded-full text-xs font-mono capitalize transition ${
+                    type === t
+                      ? "bg-mono-900 dark:bg-mono-100 text-mono-100 dark:text-mono-900 font-semibold"
+                      : "bg-mono-100 dark:bg-mono-800 text-mono-600 dark:text-mono-400 hover:bg-mono-200"
+                  }`}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+
+            {type === "custom" && (
+              <input
+                type="text"
+                value={customType}
+                onChange={(e) => setCustomType(e.target.value)}
+                placeholder="Tulis tipe custom..."
+                className="w-full px-3.5 py-2 bg-mono-50 dark:bg-mono-950 border border-mono-200 dark:border-mono-800 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-mono-900"
+              />
+            )}
+          </div>
+
+          {/* Tanggal Kunjungan */}
+          <div>
+            <label className="block text-xs font-mono uppercase tracking-wider text-mono-500 dark:text-mono-400 mb-1">
+              Tanggal Kunjungan
+            </label>
+            <div className="relative">
+              <Calendar className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-mono-400" />
+              <input
+                type="date"
+                value={visitedAt}
+                onChange={(e) => setVisitedAt(e.target.value)}
+                className="w-full pl-10 pr-3 py-2 bg-mono-50 dark:bg-mono-950 border border-mono-200 dark:border-mono-800 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-mono-900"
+              />
+            </div>
+          </div>
+
+          {/* Lokasi Pin / GPS */}
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-xs font-mono uppercase tracking-wider text-mono-500 dark:text-mono-400">
+                Koordinat Lokasi Peta
+              </label>
+              <button
+                type="button"
+                onClick={handleDetectGPS}
+                disabled={isDetectingGps}
+                className="text-[11px] font-mono text-mono-900 dark:text-mono-100 flex items-center gap-1 hover:underline"
+              >
+                <Navigation className="w-3 h-3" />
+                {isDetectingGps ? "Mendeteksi..." : "Deteksi GPS"}
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 mb-2">
+              <input
+                type="number"
+                step="any"
+                value={latitude}
+                onChange={(e) => setLatitude(parseFloat(e.target.value) || 0)}
+                placeholder="Latitude"
+                className="px-3 py-2 bg-mono-50 dark:bg-mono-950 border border-mono-200 dark:border-mono-800 rounded-xl text-xs font-mono"
+              />
+              <input
+                type="number"
+                step="any"
+                value={longitude}
+                onChange={(e) => setLongitude(parseFloat(e.target.value) || 0)}
+                placeholder="Longitude"
+                className="px-3 py-2 bg-mono-50 dark:bg-mono-950 border border-mono-200 dark:border-mono-800 rounded-xl text-xs font-mono"
+              />
+            </div>
+
+            {/* Geocode Search */}
+            <div className="flex gap-1.5 mb-2">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Cari lokasi baru..."
+                className="flex-1 px-3 py-1.5 bg-mono-50 dark:bg-mono-950 border border-mono-200 dark:border-mono-800 rounded-xl text-xs"
+              />
+              <button
+                type="button"
+                onClick={handleGeocodeSearch}
+                className="px-3 py-1.5 bg-mono-200 dark:bg-mono-800 hover:bg-mono-300 text-xs font-mono rounded-xl transition"
+              >
+                Cari
+              </button>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setIsMapPickerOpen(!isMapPickerOpen)}
+              className="w-full py-2 bg-mono-100 dark:bg-mono-800 border border-dashed border-mono-300 dark:border-mono-700 rounded-xl text-xs font-mono text-mono-700 dark:text-mono-300 flex items-center justify-center gap-1.5 hover:bg-mono-200 transition"
+            >
+              <MapPin className="w-3.5 h-3.5" />
+              {isMapPickerOpen ? "Tutup Peta Picker" : "Pilih Titik di Peta Interaktif"}
+            </button>
+
+            {isMapPickerOpen && (
+              <div className="mt-2 h-56 rounded-xl overflow-hidden border border-mono-300 dark:border-mono-700 relative">
+                <InteractiveMap
+                  places={[]}
+                  onSelectPlace={() => {}}
+                  isPickerMode={true}
+                  pickedLocation={{ lat: latitude, lng: longitude }}
+                  onPickLocation={(lat, lng) => {
+                    setLatitude(lat);
+                    setLongitude(lng);
+                  }}
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Catatan / Journal Notes */}
+          <div>
+            <label className="block text-xs font-mono uppercase tracking-wider text-mono-500 dark:text-mono-400 mb-1">
+              Catatan & Kenangan
+            </label>
+            <textarea
+              rows={3}
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              className="w-full px-3.5 py-2 bg-mono-50 dark:bg-mono-950 border border-mono-200 dark:border-mono-800 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-mono-900"
+            />
+          </div>
+
+          {/* Public vs Private Toggle */}
+          <div className="flex items-center justify-between p-3 bg-mono-100/60 dark:bg-mono-800/40 rounded-xl border border-mono-200 dark:border-mono-800">
+            <div className="flex items-center gap-2">
+              {isPublic ? <Globe className="w-4 h-4 text-emerald-500" /> : <Lock className="w-4 h-4 text-mono-400" />}
+              <div>
+                <p className="text-xs font-medium">{isPublic ? "Publik" : "Privat (Default)"}</p>
+                <p className="text-[10px] text-mono-500">
+                  {isPublic ? "Tampil di profil publik Anda" : "Hanya dapat dilihat oleh Anda"}
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsPublic(!isPublic)}
+              className={`w-10 h-6 rounded-full transition p-1 ${
+                isPublic ? "bg-mono-900 dark:bg-mono-100" : "bg-mono-300 dark:bg-mono-700"
+              }`}
+            >
+              <div
+                className={`w-4 h-4 rounded-full bg-white dark:bg-mono-900 transition-transform ${
+                  isPublic ? "translate-x-4" : "translate-x-0"
+                }`}
+              />
+            </button>
+          </div>
+
+          {/* Submit Button */}
+          <div className="pt-4 border-t border-mono-200 dark:border-mono-800">
+            <button
+              type="submit"
+              disabled={isSaving}
+              className="w-full py-3.5 bg-mono-900 dark:bg-mono-100 text-mono-100 dark:text-mono-900 rounded-xl text-sm font-bold shadow-lg hover:opacity-90 transition disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {isSaving ? "Simpan Perubahan..." : "Simpan Perubahan Singgahan"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Newsreader } from "next/font/google";
 import { AuthProvider } from "@/context/AuthContext";
+import { Toaster } from "sonner";
 import "./globals.css";
 
 const geist = Geist({
@@ -44,6 +45,12 @@ const themeInit = `
     } else {
       document.documentElement.classList.remove("dark");
     }
+
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", function () {
+        navigator.serviceWorker.register("/sw.js").catch(function () {});
+      });
+    }
   } catch (e) {}
 })();
 `;
@@ -54,12 +61,17 @@ export default function RootLayout({
   return (
     <html lang="id" suppressHydrationWarning>
       <head>
+        <link rel="manifest" href="/manifest.json" />
+        <meta name="theme-color" content="#09090b" />
         <script dangerouslySetInnerHTML={{ __html: themeInit }} />
       </head>
       <body
         className={`${geist.variable} ${newsreader.variable} ${geistMono.variable} font-sans min-h-screen bg-background text-foreground antialiased transition-colors duration-300`}
       >
-        <AuthProvider>{children}</AuthProvider>
+        <AuthProvider>
+          {children}
+          <Toaster position="top-right" richColors />
+        </AuthProvider>
       </body>
     </html>
   );

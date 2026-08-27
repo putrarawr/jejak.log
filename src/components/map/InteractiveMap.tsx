@@ -13,6 +13,8 @@ import {
   X,
 } from "lucide-react";
 import "leaflet/dist/leaflet.css";
+import "leaflet.markercluster/dist/MarkerCluster.css";
+import "leaflet.markercluster/dist/MarkerCluster.Default.css";
 
 interface PlaceItem {
   id: string;
@@ -68,7 +70,11 @@ export default function InteractiveMap({
 
   useEffect(() => {
     setIsClient(true);
-    Promise.all([import("leaflet"), import("react-leaflet")]).then(([L, ReactLeaflet]) => {
+    Promise.all([
+      import("leaflet"),
+      import("react-leaflet"),
+      import("leaflet.markercluster"),
+    ]).then(([L, ReactLeaflet]) => {
       setLeafletModules({ L, ...ReactLeaflet });
     });
   }, []);

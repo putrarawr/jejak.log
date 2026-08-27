@@ -1,0 +1,22 @@
+{
+  "name": "Jejak.log — Album Eksplorasi Digital",
+  "short_name": "Jejak.log",
+  "description": "Catat tempat yang sudah kamu jelajahi lengkap dengan foto, video, dan pin di peta.",
+  "start_url": "/app",
+  "display": "standalone",
+  "background_color": "#09090b",
+  "theme_color": "#09090b",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=192&q=80",
+      "sizes": "192x192",
+      "type": "image/jpeg"
+    },
+    {
+      "src": "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=512&q=80",
+      "sizes": "512x512",
+      "type": "image/jpeg"
+    }
+  ]
+}
