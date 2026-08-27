@@ -72,6 +72,7 @@ export default function DedicatedAlbumPage() {
         if (data) {
           foundPlace = {
             id: data.id,
+            user_id: data.user_id,
             name: data.name,
             type: data.type,
             latitude: data.latitude,
@@ -360,6 +361,31 @@ export default function DedicatedAlbumPage() {
   const mediaList = place.media || [];
   const currentMediaItem = mediaList[activeMediaIndex] || null;
 
+  // Determine ownership
+  const isOwner = isGuestMode ? true : (user && place.user_id === user.id);
+
+  // IDOR Protection: Block access if private and not owner
+  if (!isOwner && !place.isPublic) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-mono-50 dark:bg-mono-950 text-mono-900 dark:text-mono-100 p-6 text-center space-y-4">
+        <div className="w-16 h-16 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+          <Lock className="w-8 h-8 text-red-500" />
+        </div>
+        <h1 className="text-xl font-bold font-serif">Akses Ditolak</h1>
+        <p className="text-xs text-mono-500 max-w-sm">
+          Maaf, album ini bersifat privat dan hanya dapat dilihat oleh pemiliknya.
+        </p>
+        <Link
+          href="/app"
+          className="px-5 py-2.5 bg-mono-900 dark:bg-mono-100 text-mono-100 dark:text-mono-900 font-mono text-xs font-bold rounded-xl flex items-center gap-2 shadow hover:scale-105 transition mt-4"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          <span>Kembali ke Dashboard</span>
+        </Link>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex flex-col bg-mono-50 dark:bg-mono-950 text-mono-900 dark:text-mono-100 pb-16">
       {/* Top Bar */}
@@ -374,24 +400,27 @@ export default function DedicatedAlbumPage() {
           </Link>
 
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => setIsEditModalOpen(true)}
-              className="p-2 text-mono-600 dark:text-mono-400 hover:text-mono-900 dark:hover:text-mono-100 hover:bg-mono-100 dark:hover:bg-mono-800 rounded-xl transition flex items-center gap-1.5 font-mono text-xs"
-              title="Edit Tempat"
-            >
-              <Edit3 className="w-4 h-4" />
-              <span className="hidden sm:inline">Edit Tempat</span>
-            </button>
+            {isOwner && (
+              <>
+                <button
+                  onClick={() => setIsEditModalOpen(true)}
+                  className="p-2 text-mono-600 dark:text-mono-400 hover:text-mono-900 dark:hover:text-mono-100 hover:bg-mono-100 dark:hover:bg-mono-800 rounded-xl transition flex items-center gap-1.5 font-mono text-xs"
+                  title="Edit Tempat"
+                >
+                  <Edit3 className="w-4 h-4" />
+                  <span className="hidden sm:inline">Edit Tempat</span>
+                </button>
 
-            <button
-              onClick={handleDeleteEntirePlace}
-              className="p-2 text-red-600 dark:text-red-400 hover:bg-red-500/10 rounded-xl transition flex items-center gap-1.5 font-mono text-xs"
-              title="Hapus tempat ini"
-            >
-              <Trash2 className="w-4 h-4" />
-              <span className="hidden sm:inline">Hapus Tempat</span>
-            </button>
-
+                <button
+                  onClick={handleDeleteEntirePlace}
+                  className="p-2 text-red-600 dark:text-red-400 hover:bg-red-500/10 rounded-xl transition flex items-center gap-1.5 font-mono text-xs"
+                  title="Hapus tempat ini"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  <span className="hidden sm:inline">Hapus Tempat</span>
+                </button>
+              </>
+            )}
             <ThemeToggle />
           </div>
         </div>
@@ -463,28 +492,30 @@ export default function DedicatedAlbumPage() {
               <span>Galeri Foto & Video ({mediaList.length})</span>
             </h2>
 
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setIsCameraModalOpen(true)}
-                className="px-3 py-1.5 bg-mono-100 dark:bg-mono-800 hover:bg-mono-200 dark:hover:bg-mono-700 font-mono text-xs font-bold rounded-xl flex items-center gap-1.5 transition"
-              >
-                <Camera className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Ambil Foto</span>
-              </button>
+            {isOwner && (
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setIsCameraModalOpen(true)}
+                  className="px-3 py-1.5 bg-mono-100 dark:bg-mono-800 hover:bg-mono-200 dark:hover:bg-mono-700 font-mono text-xs font-bold rounded-xl flex items-center gap-1.5 transition"
+                >
+                  <Camera className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Ambil Foto</span>
+                </button>
 
-              <label className="cursor-pointer px-3 py-1.5 bg-mono-900 dark:bg-mono-100 text-mono-100 dark:text-mono-900 hover:opacity-90 font-mono text-xs font-bold rounded-xl flex items-center gap-1.5 transition">
-                <Upload className="w-3.5 h-3.5" />
-                <span>Unggah Media</span>
-                <input
-                  type="file"
-                  multiple
-                  accept="image/*,video/*"
-                  onChange={handleFileUpload}
-                  className="hidden"
-                  disabled={isUploading}
-                />
-              </label>
-            </div>
+                <label className="cursor-pointer px-3 py-1.5 bg-mono-900 dark:bg-mono-100 text-mono-100 dark:text-mono-900 hover:opacity-90 font-mono text-xs font-bold rounded-xl flex items-center gap-1.5 transition">
+                  <Upload className="w-3.5 h-3.5" />
+                  <span>Unggah Media</span>
+                  <input
+                    type="file"
+                    multiple
+                    accept="image/*,video/*"
+                    onChange={handleFileUpload}
+                    className="hidden"
+                    disabled={isUploading}
+                  />
+                </label>
+              </div>
+            )}
           </div>
 
           {/* Active Media Viewer */}
@@ -513,13 +544,15 @@ export default function DedicatedAlbumPage() {
               </button>
 
               {/* Delete Current Media */}
-              <button
-                onClick={() => handleDeleteMedia(currentMediaItem.id)}
-                className="absolute bottom-3 right-3 p-2 rounded-full bg-red-600/80 hover:bg-red-600 text-white opacity-0 group-hover:opacity-100 transition shadow-md backdrop-blur-sm"
-                title="Hapus foto/video ini"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
+              {isOwner && (
+                <button
+                  onClick={() => handleDeleteMedia(currentMediaItem.id)}
+                  className="absolute bottom-3 right-3 p-2 rounded-full bg-red-600/80 hover:bg-red-600 text-white opacity-0 group-hover:opacity-100 transition shadow-md backdrop-blur-sm"
+                  title="Hapus foto/video ini"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              )}
             </div>
           ) : (
             <div className="py-12 border-2 border-dashed border-mono-200 dark:border-mono-800 rounded-2xl text-center space-y-3">

@@ -27,6 +27,9 @@ function LoginForm() {
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
 
   useEffect(() => {
+    // Prefetch the dashboard for a faster transition
+    router.prefetch("/app");
+    
     const isVerifiedParam = searchParams.get("verified") === "true";
     const hash = typeof window !== "undefined" ? window.location.hash : "";
     const isSignupType =
@@ -38,7 +41,7 @@ function LoginForm() {
       setIsSuccessModalOpen(true);
       toast.success("Email Anda berhasil diverifikasi!");
     }
-  }, [searchParams]);
+  }, [searchParams, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
