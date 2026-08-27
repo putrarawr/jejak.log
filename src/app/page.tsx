@@ -10,8 +10,11 @@ import {
   ShieldCheck,
   Compass,
   Globe,
+  User,
+  Map as MapIcon,
   Sparkles,
-  Map as MapIcon
+  Search,
+  ExternalLink,
 } from "lucide-react";
 import { Reveal } from "@/components/reveal";
 import ThemeToggle from "@/components/theme-toggle";
@@ -24,8 +27,38 @@ const InteractiveMap = dynamic(() => import("@/components/map/InteractiveMap"), 
     <div className="w-full h-full flex items-center justify-center bg-mono-100/50 dark:bg-mono-900/50 backdrop-blur-sm animate-pulse">
       <Compass className="w-8 h-8 text-mono-400 animate-spin" />
     </div>
-  )
+  ),
 });
+
+const SHOWCASE_PUBLIC_PROFILES = [
+  {
+    username: "putrarawr",
+    displayName: "Putra Petualang",
+    avatar: "P",
+    placesCount: 12,
+    topLocation: "Dieng & Jakarta",
+    latestImage: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800&q=80",
+    bio: "Pencinta alam dan kopi lokal Indonesia.",
+  },
+  {
+    username: "explorer_id",
+    displayName: "Arka Nusantari",
+    avatar: "A",
+    placesCount: 28,
+    topLocation: "Borobudur & Jogja",
+    latestImage: "https://images.unsplash.com/photo-1596402184320-417e7178b2cd?w=800&q=80",
+    bio: "Menyelusuri warisan budaya nusantara.",
+  },
+  {
+    username: "coffee_notes",
+    displayName: "Siti Rahma",
+    avatar: "S",
+    placesCount: 19,
+    topLocation: "Bandung & Jakarta",
+    latestImage: "https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=800&q=80",
+    bio: "Mencari spot kopi unik dengan desain monokrom.",
+  },
+];
 
 const INITIAL_SAMPLE_PLACES = [
   {
@@ -47,7 +80,7 @@ const INITIAL_SAMPLE_PLACES = [
   },
   {
     id: "sample-2",
-    name: "Bukit Sikunir",
+    name: "Bukit Sikunir Dieng",
     type: "alam",
     latitude: -7.2307,
     longitude: 109.9082,
@@ -57,7 +90,7 @@ const INITIAL_SAMPLE_PLACES = [
     media: [
       {
         id: "m-2",
-        storageUrl: "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=800&q=80",
+        storageUrl: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800&q=80",
         type: "photo",
       },
     ],
@@ -109,7 +142,7 @@ export default function LandingPage() {
   useEffect(() => {
     async function fetchUserPlaces() {
       if (user) {
-        const { data, error } = await supabase
+        const { data } = await supabase
           .from("places")
           .select("*")
           .eq("user_id", user.id)
@@ -143,41 +176,66 @@ export default function LandingPage() {
   return (
     <div className="flex min-h-screen flex-col bg-mono-50 dark:bg-mono-950 text-mono-900 dark:text-mono-100 transition-colors duration-500 overflow-x-hidden selection:bg-blue-500/30">
       {/* Background Ambient Glows */}
-      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-blue-500/10 blur-[120px] pointer-events-none" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[30%] h-[40%] rounded-full bg-emerald-500/10 blur-[120px] pointer-events-none" />
+      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-mono-400/10 blur-[120px] pointer-events-none" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[30%] h-[40%] rounded-full bg-mono-600/10 blur-[120px] pointer-events-none" />
 
       {/* Top Navigation */}
-      <header className="sticky top-0 z-50 border-b border-white/10 dark:border-mono-800/50 bg-white/70 dark:bg-mono-950/70 backdrop-blur-xl">
+      <header className="sticky top-0 z-50 border-b border-mono-200/60 dark:border-mono-800/50 bg-white/80 dark:bg-mono-950/80 backdrop-blur-xl">
         <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-4 md:px-8">
           <Link href="/" className="flex items-center gap-2.5 group">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-mono-800 to-mono-950 dark:from-mono-100 dark:to-mono-300 text-mono-100 dark:text-mono-900 flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform">
+            <div className="w-8 h-8 rounded-xl bg-mono-900 dark:bg-mono-100 text-mono-100 dark:text-mono-900 flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform">
               <Compass className="w-4 h-4" />
             </div>
             <span className="font-mono font-bold tracking-tight text-lg">Jejak.log</span>
           </Link>
-          <div className="flex items-center gap-4">
+
+          {/* Nav Links */}
+          <div className="hidden md:flex items-center gap-6 font-mono text-xs">
+            <Link
+              href="/app/explore"
+              className="text-mono-600 dark:text-mono-400 hover:text-mono-900 dark:hover:text-mono-100 transition-colors flex items-center gap-1.5"
+            >
+              <Globe className="w-3.5 h-3.5" />
+              <span>Jelajah Komunitas</span>
+            </Link>
+            <Link
+              href="/app"
+              className="text-mono-600 dark:text-mono-400 hover:text-mono-900 dark:hover:text-mono-100 transition-colors flex items-center gap-1.5"
+            >
+              <MapIcon className="w-3.5 h-3.5" />
+              <span>Peta & Grid Album</span>
+            </Link>
+          </div>
+
+          <div className="flex items-center gap-3">
             <ThemeToggle />
             {hasActiveSession ? (
               <Link
                 href="/app"
-                className="inline-flex h-10 items-center gap-2 rounded-xl bg-mono-900 dark:bg-mono-100 px-5 text-xs font-bold text-mono-100 dark:text-mono-900 transition-all hover:-translate-y-0.5 hover:shadow-lg shadow-md"
+                className="inline-flex h-10 items-center gap-2 rounded-xl bg-mono-900 dark:bg-mono-100 px-5 text-xs font-bold text-mono-100 dark:text-mono-900 transition-all hover:-translate-y-0.5 shadow"
               >
                 <span>Dashboard Saya</span>
                 <ArrowRight className="w-4 h-4" />
               </Link>
             ) : (
-              <div className="hidden sm:flex items-center gap-3">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <Link
+                  href="/app/explore"
+                  className="sm:hidden inline-flex h-9 items-center justify-center rounded-xl px-3 text-xs font-bold text-mono-700 dark:text-mono-300 border border-mono-200 dark:border-mono-800"
+                >
+                  Jelajah
+                </Link>
                 <Link
                   href="/login"
-                  className="inline-flex h-10 items-center justify-center rounded-xl px-4 text-xs font-bold text-mono-600 dark:text-mono-400 hover:text-mono-900 dark:hover:text-mono-100 transition-colors hover:bg-mono-100 dark:hover:bg-mono-900"
+                  className="hidden sm:inline-flex h-10 items-center justify-center rounded-xl px-4 text-xs font-bold text-mono-600 dark:text-mono-400 hover:text-mono-900 dark:hover:text-mono-100 transition-colors"
                 >
                   Masuk
                 </Link>
                 <Link
                   href="/register"
-                  className="inline-flex h-10 items-center justify-center rounded-xl bg-mono-900 dark:bg-mono-100 px-5 text-xs font-bold text-mono-100 dark:text-mono-900 transition-all hover:-translate-y-0.5 hover:shadow-lg shadow-md"
+                  className="inline-flex h-10 items-center justify-center rounded-xl bg-mono-900 dark:bg-mono-100 px-4 sm:px-5 text-xs font-bold text-mono-100 dark:text-mono-900 transition-all hover:-translate-y-0.5 shadow"
                 >
-                  Daftar Gratis
+                  Daftar
                 </Link>
               </div>
             )}
@@ -187,75 +245,71 @@ export default function LandingPage() {
 
       <main className="flex flex-1 flex-col z-10">
         {/* Hero Section */}
-        <section className="relative mx-auto flex w-full max-w-6xl flex-col lg:flex-row items-center gap-12 px-6 pb-20 pt-16 md:px-8 md:pb-28 md:pt-24">
-          
+        <section className="relative mx-auto flex w-full max-w-6xl flex-col lg:flex-row items-center gap-12 px-6 pb-16 pt-12 md:px-8 md:pb-24 md:pt-20">
           {/* Hero Content */}
           <div className="w-full lg:w-1/2 flex flex-col items-start text-left">
             <Reveal>
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-mono-100 dark:bg-mono-900 border border-mono-200 dark:border-mono-800 font-mono text-[11px] text-mono-600 dark:text-mono-400 mb-6">
+                <Sparkles className="w-3.5 h-3.5 text-mono-500" />
+                <span>Arsip Personal & Profil Eksplorasi Publik</span>
+              </div>
 
-              <h1 className="font-serif text-5xl leading-[1.1] tracking-tight sm:text-6xl md:text-[4.5rem]">
-                Sudah ke mana saja,
+              <h1 className="font-serif text-4xl sm:text-5xl md:text-6xl leading-[1.1] tracking-tight">
+                Dokumentasi Singgahan
                 <br />
                 <em className="text-transparent bg-clip-text bg-gradient-to-r from-mono-500 to-mono-900 dark:from-mono-400 dark:to-mono-100 font-normal italic">
-                  tercatat rapi.
+                  Visual & Interaktif
                 </em>
               </h1>
-              
-              <p className="mt-8 max-w-lg text-base sm:text-lg leading-relaxed text-mono-600 dark:text-mono-400 font-medium">
-                Jejak.log adalah ruang eksklusif untuk mendokumentasikan tempat-tempat yang pernah Anda kunjungi. Saksikan jejak petualangan Anda terpetakan dengan visual yang memukau.
+
+              <p className="mt-6 max-w-lg text-sm sm:text-base leading-relaxed text-mono-600 dark:text-mono-400 font-medium">
+                Catat setiap tempat yang pernah Anda kunjungi lengkap dengan pin lokasi peta, album foto, video, dan catatan eksplorasi. Bagikan profil publik Anda ke sesama petualang.
               </p>
-              
-              <div className="mt-10 flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
+
+              <div className="mt-8 flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
                 <Link
                   href={hasActiveSession ? "/app" : "/register"}
-                  className="group w-full sm:w-auto inline-flex h-14 items-center justify-center gap-3 rounded-2xl bg-mono-900 dark:bg-mono-100 px-8 text-sm font-bold text-mono-100 dark:text-mono-900 transition-all hover:-translate-y-1 hover:shadow-[0_20px_40px_-15px_rgba(0,0,0,0.3)] dark:hover:shadow-[0_20px_40px_-15px_rgba(255,255,255,0.3)]"
+                  className="group w-full sm:w-auto inline-flex h-13 items-center justify-center gap-3 rounded-2xl bg-mono-900 dark:bg-mono-100 px-8 text-sm font-bold text-mono-100 dark:text-mono-900 transition-all hover:-translate-y-1 shadow-lg"
                 >
-                  <span>{hasActiveSession ? "Lanjutkan Petualangan" : "Mulai Mencatat Singgahan"}</span>
+                  <span>{hasActiveSession ? "Lanjutkan Petualangan" : "Mulai Buat Jurnal Peta"}</span>
                   <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1.5" />
                 </Link>
-                
-                {!hasActiveSession && (
-                  <Link
-                    href="/login"
-                    className="group w-full sm:w-auto inline-flex h-14 items-center justify-center gap-2.5 rounded-2xl border border-mono-200 dark:border-mono-800 bg-white/50 dark:bg-mono-900/50 backdrop-blur-sm px-8 text-sm font-bold text-mono-700 dark:text-mono-300 transition-all hover:bg-white dark:hover:bg-mono-900 hover:-translate-y-0.5 hover:shadow-lg"
-                  >
-                    <Globe className="w-4 h-4" />
-                    <span>Coba Mode Demo</span>
-                  </Link>
-                )}
+
+                <Link
+                  href="/app/explore"
+                  className="group w-full sm:w-auto inline-flex h-13 items-center justify-center gap-2.5 rounded-2xl border border-mono-200 dark:border-mono-800 bg-white/50 dark:bg-mono-900/50 backdrop-blur-sm px-7 text-sm font-bold text-mono-700 dark:text-mono-300 transition-all hover:bg-white dark:hover:bg-mono-900"
+                >
+                  <Globe className="w-4 h-4" />
+                  <span>Jelajah Profil & Komunitas</span>
+                </Link>
               </div>
             </Reveal>
           </div>
 
-          {/* Hero Interactive Map (Glassmorphism Wrapper) */}
-          <div className="w-full lg:w-1/2 h-[450px] sm:h-[550px] relative mt-8 lg:mt-0">
+          {/* Hero Interactive Map Preview */}
+          <div className="w-full lg:w-1/2 h-[420px] sm:h-[500px] relative mt-4 lg:mt-0">
             <Reveal delay={150} className="w-full h-full">
-              <div className="absolute inset-0 bg-gradient-to-tr from-blue-500/20 to-emerald-500/20 rounded-[2.5rem] blur-2xl -z-10" />
-              <div className="w-full h-full p-2 bg-white/40 dark:bg-mono-900/40 backdrop-blur-xl border border-white/50 dark:border-mono-800/50 rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col relative z-20">
+              <div className="w-full h-full p-2 bg-white/40 dark:bg-mono-900/40 backdrop-blur-xl border border-mono-200 dark:border-mono-800 rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col relative z-20">
                 {/* Safari-like Window Header */}
-                <div className="h-10 px-4 flex items-center gap-2 border-b border-mono-200/50 dark:border-mono-800/50">
+                <div className="h-10 px-4 flex items-center justify-between border-b border-mono-200 dark:border-mono-800">
                   <div className="flex gap-1.5">
-                    <div className="w-3 h-3 rounded-full bg-red-400/80" />
-                    <div className="w-3 h-3 rounded-full bg-amber-400/80" />
-                    <div className="w-3 h-3 rounded-full bg-emerald-400/80" />
+                    <div className="w-3 h-3 rounded-full bg-mono-300 dark:bg-mono-700" />
+                    <div className="w-3 h-3 rounded-full bg-mono-300 dark:bg-mono-700" />
+                    <div className="w-3 h-3 rounded-full bg-mono-300 dark:bg-mono-700" />
                   </div>
-                  <div className="flex-1 text-center font-mono text-[10px] text-mono-500 font-medium truncate px-4">
-                    {hasActiveSession ? `Peta Sinkron: ${user?.displayName || "Jejak Anda"}` : "Live Preview: Peta Jejak.log"}
+                  <div className="font-mono text-[10px] text-mono-500 font-medium truncate px-4">
+                    Preview Peta Digital Jejak.log
                   </div>
+                  <Link href="/app/explore" className="font-mono text-[10px] text-mono-400 hover:text-mono-900 dark:hover:text-mono-100 flex items-center gap-1">
+                    <span>Eksplorasi</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </Link>
                 </div>
                 {/* Map Container */}
-                <div className="flex-1 relative rounded-b-[2.1rem] overflow-hidden bg-mono-100/50 dark:bg-mono-950/50 pointer-events-none">
+                <div className="flex-1 relative rounded-b-[2.1rem] overflow-hidden bg-mono-100 dark:bg-mono-950">
                   {isMapLoaded && (
                     <div className="absolute inset-0 pointer-events-auto">
                       <InteractiveMap places={places} onSelectPlace={() => {}} />
-                    </div>
-                  )}
-                  {/* Glass Overlay to make it feel like a preview if not logged in */}
-                  {!hasActiveSession && (
-                    <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-white dark:from-mono-950 to-transparent pointer-events-none z-[400] flex items-end justify-center pb-6">
-                      <span className="px-4 py-1.5 bg-mono-900/80 dark:bg-mono-100/80 backdrop-blur-md text-white dark:text-black font-mono text-[10px] rounded-full shadow-lg">
-                        Data Sampel (Login untuk sinkronisasi)
-                      </span>
                     </div>
                   )}
                 </div>
@@ -264,27 +318,101 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* Features Section */}
-        <section className="relative mx-auto w-full max-w-6xl px-6 pb-24 md:px-8 md:pb-32 mt-10">
-          <div className="text-center mb-16">
-            <h2 className="font-serif text-3xl md:text-4xl tracking-tight mb-4">Didesain untuk Memori Anda</h2>
-            <p className="text-mono-500 dark:text-mono-400 font-medium max-w-xl mx-auto">
+        {/* Public Explorer Profiles Spoiler Showcase Gallery */}
+        <section className="relative mx-auto w-full max-w-6xl px-6 py-16 md:px-8 border-t border-mono-200 dark:border-mono-800/60">
+          <div className="flex flex-col md:flex-row items-start md:items-end justify-between mb-10 gap-4">
+            <div>
+              <span className="font-mono text-xs text-mono-400 uppercase tracking-wider block mb-1">
+                Komunitas Penjelajah
+              </span>
+              <h2 className="font-serif text-3xl md:text-4xl tracking-tight">
+                Intip Profil & Galeri Penjelajah
+              </h2>
+            </div>
+            <Link
+              href="/app/explore"
+              className="px-4 py-2 bg-mono-100 dark:bg-mono-800 hover:bg-mono-200 dark:hover:bg-mono-700 text-mono-800 dark:text-mono-200 font-mono text-xs font-bold rounded-xl flex items-center gap-2 transition"
+            >
+              <span>Lihat Semua Komunitas</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+
+          {/* Cards Showcase Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {SHOWCASE_PUBLIC_PROFILES.map((profile, i) => (
+              <Reveal key={profile.username} delay={i * 100}>
+                <div className="group bg-white dark:bg-mono-900 border border-mono-200 dark:border-mono-800 rounded-3xl overflow-hidden shadow-sm hover:shadow-xl hover:border-mono-400 transition-all duration-300 flex flex-col h-full">
+                  {/* Photo Preview Cover */}
+                  <div className="h-44 relative overflow-hidden bg-mono-100 dark:bg-mono-800">
+                    <img
+                      src={profile.latestImage}
+                      alt={profile.displayName}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    />
+                    <div className="absolute top-3 right-3 px-2.5 py-1 rounded-full bg-mono-950/80 backdrop-blur-md text-white font-mono text-[10px] font-bold">
+                      {profile.placesCount} Singgahan
+                    </div>
+                  </div>
+
+                  {/* Profile Info Body */}
+                  <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-mono-900 dark:bg-mono-100 text-mono-100 dark:text-mono-900 flex items-center justify-center font-bold text-sm">
+                          {profile.avatar}
+                        </div>
+                        <div>
+                          <h3 className="font-bold text-sm text-mono-900 dark:text-mono-100 group-hover:text-blue-500 transition-colors">
+                            {profile.displayName}
+                          </h3>
+                          <p className="font-mono text-xs text-mono-400">@{profile.username}</p>
+                        </div>
+                      </div>
+                      <p className="text-xs text-mono-600 dark:text-mono-400 leading-relaxed">
+                        {profile.bio}
+                      </p>
+                    </div>
+
+                    <div className="pt-3 border-t border-mono-100 dark:border-mono-800 flex items-center justify-between">
+                      <span className="font-mono text-[11px] text-mono-400 flex items-center gap-1">
+                        <MapPin className="w-3 h-3" />
+                        {profile.topLocation}
+                      </span>
+
+                      <Link
+                        href={`/profile/${profile.username}`}
+                        className="px-3 py-1.5 bg-mono-900 dark:bg-mono-100 text-mono-100 dark:text-mono-900 font-mono text-xs font-bold rounded-xl flex items-center gap-1 group-hover:bg-blue-600 group-hover:text-white transition"
+                      >
+                        <span>Lihat Profil</span>
+                        <ArrowRight className="w-3 h-3" />
+                      </Link>
+                    </div>
+                  </div>
+                </div>
+              </Reveal>
+            ))}
+          </div>
+        </section>
+
+        {/* Features Grid */}
+        <section className="relative mx-auto w-full max-w-6xl px-6 py-16 md:px-8 border-t border-mono-200 dark:border-mono-800/60">
+          <div className="text-center mb-12">
+            <h2 className="font-serif text-3xl md:text-4xl tracking-tight mb-3">Didesain untuk Memori Anda</h2>
+            <p className="text-mono-500 dark:text-mono-400 font-medium text-xs sm:text-sm max-w-xl mx-auto">
               Singkirkan noise media sosial. Fokus pada pengalaman personal Anda dengan fitur yang dirancang elegan.
             </p>
           </div>
-          
+
           <div className="grid gap-6 md:grid-cols-3">
             {features.map((f, i) => (
               <Reveal key={f.title} delay={i * 100}>
-                <div className="group h-full rounded-[2rem] border border-mono-200 dark:border-mono-800 bg-white dark:bg-mono-900 p-8 shadow-sm hover:shadow-2xl hover:-translate-y-2 transition-all duration-300 relative overflow-hidden">
-                  <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity">
-                    <f.icon className="w-32 h-32 transform rotate-12" />
+                <div className="h-full rounded-[2rem] border border-mono-200 dark:border-mono-800 bg-white dark:bg-mono-900 p-7 shadow-sm hover:shadow-xl transition-all duration-300">
+                  <div className="mb-5 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-mono-100 dark:bg-mono-800 text-mono-900 dark:text-mono-100">
+                    <f.icon size={22} />
                   </div>
-                  <div className="mb-6 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-mono-50 dark:bg-mono-950 text-mono-900 dark:text-mono-100 shadow-inner">
-                    <f.icon size={24} />
-                  </div>
-                  <h3 className="font-bold text-xl mb-3 tracking-tight">{f.title}</h3>
-                  <p className="text-sm leading-relaxed text-mono-600 dark:text-mono-400 font-medium">
+                  <h3 className="font-bold text-lg mb-2 tracking-tight">{f.title}</h3>
+                  <p className="text-xs leading-relaxed text-mono-600 dark:text-mono-400 font-medium">
                     {f.desc}
                   </p>
                 </div>
@@ -293,36 +421,34 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* CTA Section */}
-        <section className="relative mx-auto w-full max-w-6xl px-6 pb-24 md:px-8 md:pb-32">
-          <div className="rounded-[2.5rem] bg-mono-900 dark:bg-mono-100 text-mono-100 dark:text-mono-900 p-10 md:p-16 flex flex-col items-center text-center relative overflow-hidden shadow-2xl">
-            <div className="absolute inset-0 opacity-10 [background-image:radial-gradient(#ffffff_1px,transparent_1px)] dark:[background-image:radial-gradient(#000000_1px,transparent_1px)] [background-size:24px_24px]" />
+        {/* Bottom CTA Section */}
+        <section className="relative mx-auto w-full max-w-6xl px-6 pb-20 md:px-8">
+          <div className="rounded-[2.5rem] bg-mono-900 dark:bg-mono-100 text-mono-100 dark:text-mono-900 p-10 md:p-14 flex flex-col items-center text-center relative overflow-hidden shadow-2xl">
             <Reveal>
-              <h2 className="font-serif text-3xl md:text-5xl tracking-tight mb-6 relative z-10">Mulai Arsip Pertama Anda</h2>
-              <p className="text-mono-300 dark:text-mono-600 max-w-2xl mx-auto mb-10 text-lg relative z-10">
-                Lupakan cara lama menyimpan memori yang tercecer di berbagai aplikasi. 
-                Satu tempat untuk seluruh jejak penjelajahan Anda.
+              <h2 className="font-serif text-3xl md:text-5xl tracking-tight mb-4 relative z-10">Mulai Jurnal Peta Anda</h2>
+              <p className="text-mono-300 dark:text-mono-600 max-w-xl mx-auto mb-8 text-sm sm:text-base relative z-10">
+                Satu tempat untuk seluruh jejak penjelajahan Anda di Indonesia dan dunia.
               </p>
               <Link
                 href={hasActiveSession ? "/app" : "/register"}
-                className="relative z-10 inline-flex h-14 items-center justify-center gap-3 rounded-2xl bg-white dark:bg-mono-900 px-10 text-sm font-bold text-mono-900 dark:text-mono-100 transition-all hover:scale-105 shadow-2xl"
+                className="relative z-10 inline-flex h-13 items-center justify-center gap-3 rounded-2xl bg-white dark:bg-mono-900 px-8 text-sm font-bold text-mono-900 dark:text-mono-100 transition-all hover:scale-105 shadow-xl"
               >
-                <span>Buka Peta Sekarang</span>
-                <ArrowRight className="w-5 h-5" />
+                <span>Buka Dashboard Peta</span>
+                <ArrowRight className="w-4 h-4" />
               </Link>
             </Reveal>
           </div>
         </section>
       </main>
 
-      <footer className="border-t border-mono-200 dark:border-mono-800/60 bg-white dark:bg-mono-900 z-10 py-10 mt-auto">
-        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-6 px-6 md:flex-row md:px-8">
-          <div className="flex items-center gap-2 opacity-50 grayscale hover:grayscale-0 hover:opacity-100 transition-all">
-            <Compass className="w-5 h-5" />
-            <span className="font-mono font-bold text-sm">Jejak.log</span>
+      <footer className="border-t border-mono-200 dark:border-mono-800/60 bg-white dark:bg-mono-900 py-8">
+        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-6 md:flex-row md:px-8">
+          <div className="flex items-center gap-2">
+            <Compass className="w-4 h-4" />
+            <span className="font-mono font-bold text-xs">Jejak.log</span>
           </div>
-          <p className="text-xs font-medium text-mono-500 text-center">
-            &copy; {new Date().getFullYear()} Jejak.log. Dibuat dengan arsitektur modern & Supabase.
+          <p className="text-[11px] font-mono text-mono-500 text-center">
+            &copy; {new Date().getFullYear()} Jejak.log | Album & Profil Eksplorasi Digital
           </p>
         </div>
       </footer>

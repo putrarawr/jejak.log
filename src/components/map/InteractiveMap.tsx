@@ -40,11 +40,11 @@ interface InteractiveMapProps {
 const MAP_STYLES = {
   light: {
     name: "Terang",
-    url: "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
+    url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
   },
   dark: {
     name: "Gelap",
-    url: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+    url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
   },
   satellite: {
     name: "Satelit",

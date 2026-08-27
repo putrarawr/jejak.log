@@ -25,8 +25,8 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "Jejak.log — Album Eksplorasi Digital",
-    template: "%s — Jejak.log",
+    default: "Jejak.log | Album Eksplorasi Digital",
+    template: "%s | Jejak.log",
   },
   description:
     "Catat tempat yang sudah kamu jelajahi lengkap dengan foto, video, dan pin di peta. Arsip personal, bukan itinerary.",
@@ -70,7 +70,19 @@ export default function RootLayout({
       >
         <AuthProvider>
           {children}
-          <Toaster position="top-right" richColors />
+          <Toaster
+            position="top-right"
+            theme="dark"
+            toastOptions={{
+              style: {
+                background: "#18181b",
+                color: "#f4f4f5",
+                border: "1px solid #27272a",
+                fontSize: "12px",
+                fontFamily: "var(--font-mono)",
+              },
+            }}
+          />
         </AuthProvider>
       </body>
     </html>

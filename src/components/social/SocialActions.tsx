@@ -98,42 +98,47 @@ export default function SocialActions({ placeId, isPublic = true }: SocialAction
     loadSocialData();
   }, [placeId, user, isGuestMode]);
 
-  const handleToggleLike = async () => {
-    if (!user) {
-      toast.error("Silakan masuk akun untuk menyukai singgahan ini.");
-      return;
+  const getDeviceFingerprint = () => {
+    let fp = localStorage.getItem("jejaklog_device_fp");
+    if (!fp) {
+      fp = `fp-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+      localStorage.setItem("jejaklog_device_fp", fp);
     }
+    return fp;
+  };
+
+  const handleToggleLike = async () => {
+    const actorId = user?.id || getDeviceFingerprint();
 
     const nextIsLiked = !isLiked;
     const nextCount = nextIsLiked ? likesCount + 1 : Math.max(0, likesCount - 1);
     setIsLiked(nextIsLiked);
     setLikesCount(nextCount);
 
-    if (!isGuestMode) {
+    if (!isGuestMode && user) {
       try {
         if (nextIsLiked) {
           await supabase.from("likes").insert([{ place_id: placeId, user_id: user.id }]);
-          toast.success("❤️ Disukai!");
+          toast.success("Disukai");
         } else {
           await supabase.from("likes").delete().eq("place_id", placeId).eq("user_id", user.id);
         }
       } catch (err) {
-        // Fallback local
-        handleLocalLike(nextIsLiked);
+        handleLocalLike(nextIsLiked, actorId);
       }
     } else {
-      handleLocalLike(nextIsLiked);
+      handleLocalLike(nextIsLiked, actorId);
     }
   };
 
-  const handleLocalLike = (liked: boolean) => {
+  const handleLocalLike = (liked: boolean, actorId: string) => {
     const localLikes: string[] = JSON.parse(localStorage.getItem(`jejaklog_likes_${placeId}`) || "[]");
     let updatedLikes = [...localLikes];
-    if (liked && user) {
-      if (!updatedLikes.includes(user.id)) updatedLikes.push(user.id);
-      toast.success("❤️ Disukai!");
-    } else if (user) {
-      updatedLikes = updatedLikes.filter((id) => id !== user.id);
+    if (liked) {
+      if (!updatedLikes.includes(actorId)) updatedLikes.push(actorId);
+      toast.success("Disukai");
+    } else {
+      updatedLikes = updatedLikes.filter((id) => id !== actorId);
     }
     localStorage.setItem(`jejaklog_likes_${placeId}`, JSON.stringify(updatedLikes));
   };

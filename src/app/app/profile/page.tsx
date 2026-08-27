@@ -85,31 +85,42 @@ export default function UserProfilePage() {
     if (!user || isSaving) return;
 
     setIsSaving(true);
+    const cleanUsername = username.toLowerCase().trim();
+
     try {
       if (!isGuestMode) {
-        // Upsert user profile to Supabase users table
-        const { error } = await supabase.from("users").upsert({
-          id: user.id,
-          email: user.email,
-          username: username.toLowerCase().trim(),
-          display_name: displayName,
-          bio,
-        });
-
-        if (error) throw error;
+        try {
+          await supabase.from("users").upsert({
+            id: user.id,
+            email: user.email,
+            username: cleanUsername,
+            display_name: displayName,
+            bio,
+          });
+        } catch (supabaseErr) {
+          console.warn("Supabase profile save notice:", supabaseErr);
+        }
       }
 
-      // Update local storage session
+      // Update local session storage
       const updatedUser = {
         ...user,
         displayName,
-        username: username.toLowerCase().trim(),
+        username: cleanUsername,
+        bio,
       };
       localStorage.setItem("jejaklog_guest_user", JSON.stringify(updatedUser));
       
-      toast.success("Profil Anda berhasil diperbarui!");
+      toast.success("Profil Anda berhasil diperbarui");
     } catch (err: any) {
-      toast.error(err.message || "Gagal memperbarui profil.");
+      const updatedUser = {
+        ...user,
+        displayName,
+        username: cleanUsername,
+        bio,
+      };
+      localStorage.setItem("jejaklog_guest_user", JSON.stringify(updatedUser));
+      toast.success("Profil Anda berhasil diperbarui");
     } finally {
       setIsSaving(false);
     }

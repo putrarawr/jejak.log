@@ -251,13 +251,13 @@ export default function AppShell({
 
           {/* Right Action Controls */}
           <div className="flex items-center gap-2">
-            <button
-              onClick={onOpenAddModal}
-              className="hidden sm:flex items-center gap-1.5 px-3.5 py-1.5 bg-mono-900 hover:bg-mono-800 dark:bg-mono-100 dark:hover:bg-mono-200 text-mono-100 dark:text-mono-900 text-xs font-medium rounded-xl transition shadow"
+            <Link
+              href="/app/explore"
+              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono font-semibold text-mono-700 dark:text-mono-300 hover:bg-mono-100 dark:hover:bg-mono-800 rounded-xl transition"
             >
-              <PlusCircle className="w-3.5 h-3.5" />
-              Tambah Tempat
-            </button>
+              <Compass className="w-3.5 h-3.5" />
+              Jelajah Komunitas
+            </Link>
 
             <Link
               href="/"
@@ -356,8 +356,19 @@ export default function AppShell({
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto p-3 sm:p-6 flex flex-col">{children}</main>
 
+      {/* Floating Centered Action Button (+ Tambah Singgahan) */}
+      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50">
+        <button
+          onClick={onOpenAddModal}
+          className="px-5 py-3 rounded-full bg-mono-900 text-mono-100 dark:bg-mono-100 dark:text-mono-900 font-mono text-xs font-bold shadow-2xl hover:scale-105 active:scale-95 transition-all duration-200 flex items-center gap-2 border border-mono-700 dark:border-mono-300 backdrop-blur-md"
+        >
+          <PlusCircle className="w-4.5 h-4.5" />
+          <span>Tambah Singgahan</span>
+        </button>
+      </div>
+
       {/* Mobile Bottom Navigation Bar */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/90 dark:bg-mono-900/90 backdrop-blur-lg border-t border-mono-200 dark:border-mono-800 px-4 py-2 flex items-center justify-around shadow-2xl">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/90 dark:bg-mono-900/90 backdrop-blur-lg border-t border-mono-200 dark:border-mono-800 px-6 py-2 flex items-center justify-between shadow-2xl">
         <button
           onClick={() => onTabChange("map")}
           className={`flex flex-col items-center gap-0.5 p-1 transition ${
@@ -382,12 +393,7 @@ export default function AppShell({
           <span className="text-[9px] font-mono">Grid</span>
         </button>
 
-        <button
-          onClick={onOpenAddModal}
-          className="w-11 h-11 rounded-full bg-mono-900 dark:bg-mono-100 text-mono-100 dark:text-mono-900 flex items-center justify-center shadow-lg -mt-3 active:scale-95 transition"
-        >
-          <PlusCircle className="w-5 h-5" />
-        </button>
+        <div className="w-24" /> {/* Spacer for Floating Center Button */}
 
         <button
           onClick={() => onTabChange("timeline")}
