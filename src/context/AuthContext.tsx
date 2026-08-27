@@ -242,7 +242,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             data.session.user.user_metadata?.username || cleanEmail.split("@")[0],
           display_name:
             data.session.user.user_metadata?.display_name || cleanEmail.split("@")[0],
-        }).then(() => {}).catch((e) => { console.warn("Failed to upsert user on login", e); });
+        }).then(
+          () => {},
+          (e) => { console.warn("Failed to upsert user on login", e); }
+        );
       }
 
       return {};
